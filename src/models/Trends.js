@@ -8,7 +8,8 @@ const trendsSchema = new mongoose.Schema(
         demand: Number,
       }
     ],
-    hiringTrends: [
+    // UPDATED: Renamed from 'hiringTrends' to 'trends' to match Python
+    trends: [
       {
         month: String,
         hiring: Number,
@@ -21,11 +22,12 @@ const trendsSchema = new mongoose.Schema(
         salary: Number,
       }
     ],
+    // UPDATED: Changed keys to snake_case and types to String (for "+15%")
     insights: {
-      growingMarkets: Number,
-      aiMlOpportunities: Number,
-      remotePositions: Number,
-      avgSalaryGrowth: Number,
+      growing_market: { type: String, default: "N/A" },
+      ai_opportunity: { type: String, default: "N/A" },
+      remote_jobs: { type: String, default: "N/A" },
+      salary_growth: { type: String, default: "N/A" },
     }
   },
   { timestamps: true }
