@@ -1096,7 +1096,6 @@
 
 
 
-
 import os
 import re
 import json
@@ -1133,8 +1132,8 @@ except ImportError as e:
 # ⚙️ CONFIGURATION
 # ---------------------------------------------------------
 
-API_KEY = os.getenv("GOOGLE_API_KEY")
-MODEL_NAME = 'gemini-1.5-flash' 
+API_KEY = "AIzaSyDi2HIoJAS_urzrmDWSmR3vZteURUptPGs"
+MODEL_NAME = 'gemini-2.5-flash' 
 
 if AI_AVAILABLE and API_KEY:
     try:

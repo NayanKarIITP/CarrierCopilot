@@ -1,4 +1,3 @@
-
 import os
 import re
 import sys
@@ -16,7 +15,7 @@ except ImportError:
 # ---------------------------------------------------------
 
 # ✅ FIX 1: Variable name MUST be uppercase to match usage below
-API_KEY = "AIzaSyCCs3_htORG197m0bz6SeVjqERnlfco5I4"
+API_KEY = "AIzaSyDi2HIoJAS_urzrmDWSmR3vZteURUptPGs"
 
 if AI_AVAILABLE and API_KEY:
     try:

@@ -18,35 +18,42 @@
 
 
 
-
 const mongoose = require("mongoose");
 
 const resumeSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  rawText: String,
   
+  // 1. Basic Info
+  rawText: String,
   skills: [String],
 
-  // CHANGE THESE 👇
+  // 2. Education (Updated to match Python output keys)
   education: [
     {
       degree: String,
-      institution: String,
+      school: String, // Python sends 'school', not 'institution'
       year: String,
     }
   ],
 
+  // 3. Experience (Updated to match Python output keys)
   experience: [
     {
       title: String,
       company: String,
-      duration: String,
-      description: String,
+      dates: String,   // Python sends 'dates', not 'duration'
+      bullets: [String], // Python sends an array of strings called 'bullets'
     }
   ],
 
-  score: Number,
+  // 4. Analysis Data
+  score: { type: Number, default: 0 },
   feedback: [String],
+  
+  // ✅ NEW: Added these to store the strengths/weaknesses we calculate in the controller
+  strengths: [String],
+  weaknesses: [String],
+
   fileURL: String,
 }, { timestamps: true });
 

@@ -130,7 +130,7 @@ def generate_real_roadmap(skills, role):
         return get_fallback_roadmap(skills, role)
 
     # B. Auth
-    api_key = "AIzaSyCCs3_htORG197m0bz6SeVjqERnlfco5I4"
+    api_key = "AIzaSyDi2HIoJAS_urzrmDWSmR3vZteURUptPGs"
     # IF ENV FAILS, PASTE KEY HERE FOR TESTING:
     # api_key = "AIzaSy..." 
 

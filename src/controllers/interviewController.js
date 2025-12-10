@@ -668,25 +668,26 @@ exports.startSession = async (req, res) => {
     return res.status(500).json({ success: false, message: "Failed to start session" });
   }
 };
-
 /**
- * 2. Get Next Question (CORRECTED)
+ * 2. Get Next Question
+ * Called when user clicks "Next Question"
  */
 exports.getQuestion = async (req, res) => {
   try {
-    // ✅ FIX 1: Extract 'sessionId' from the request
+    // ✅ FIX 1: Get sessionId from the frontend request
     const { role, level, sessionId } = req.body; 
     
     console.log(`🔄 Fetching Next Question for Session: ${sessionId}`);
 
-    // ✅ FIX 2: Pass 'sessionId' as the 3rd argument
+    // ✅ FIX 2: Pass sessionId to the service
+    // This tells the service to hit the '/next-question' endpoint instead of '/start'
     const response = await pythonService.getInterviewQuestion(
         role || "Software Engineer", 
         level || "Mid-Level", 
-        sessionId // <--- CRITICAL: This was missing!
+        sessionId // <--- THIS WAS MISSING
     );
 
-    // 🛡️ Handle null response
+    // 🛡️ Handle null response (prevents crashes)
     if (!response) {
         return res.json({
             success: true,
@@ -703,6 +704,7 @@ exports.getQuestion = async (req, res) => {
     let questionText = response.question || "Could not generate question.";
     let followUpText = response.follow_up || "";
 
+    // Handle nested object edge case
     if (typeof response.question === 'object') {
         questionText = response.question.question;
         followUpText = response.question.follow_up;
@@ -723,7 +725,6 @@ exports.getQuestion = async (req, res) => {
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
-
 /**
  * 3. Analyze Answer
  * Process transcript with AI

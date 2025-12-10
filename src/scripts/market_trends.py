@@ -191,7 +191,7 @@ def get_market_trends():
         return get_fallback_data()
 
     # B. Auth
-    API_KEY = "AIzaSyCvsRTUXXces2Ao1VtxAYlZDYCTyRhroYI"
+    API_KEY = "AIzaSyDi2HIoJAS_urzrmDWSmR3vZteURUptPGs"
     if not API_KEY:
         print("ERROR: API Key is missing.", file=sys.stderr)
         return get_fallback_data()

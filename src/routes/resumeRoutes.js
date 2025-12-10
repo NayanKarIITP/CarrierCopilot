@@ -95,8 +95,6 @@
 
 
 
-
-
 const express = require("express");
 const router = express.Router();
 
@@ -113,23 +111,23 @@ const {
 const pythonService = require("../services/pythonService");
 
 // -------------------------------------------------------
-// 🔹 FIXED — Resume Upload MUST use field: "file"
+// 🔹 MAIN UPLOAD ROUTE
 // -------------------------------------------------------
+// Ensure your frontend sends form-data with key 'file'
 router.post("/upload", auth, upload.single("file"), uploadResume);
 
 // -------------------------------------------------------
 // CRUD Routes
 // -------------------------------------------------------
-
-router.get("/", auth, listUserResumes);           // List all resumes
-router.get("/:id", auth, getResume);              // Get one resume
-router.delete("/:id", auth, deleteResume);        // Delete resume
+router.get("/", auth, listUserResumes);           // List all
+router.get("/:id", auth, getResume);              // Get specific
+router.delete("/:id", auth, deleteResume);        // Delete
 
 // -------------------------------------------------------
-// 🔹 AI Microservice Routes
+// 🔹 AI Utility Routes (Direct Service Calls)
 // -------------------------------------------------------
 
-// Text Resume Parsing
+// 1. Text Resume Parsing (Requires the fix above in pythonService)
 router.post("/parse-text", auth, async (req, res) => {
   try {
     const { text, target_role } = req.body;
@@ -138,6 +136,7 @@ router.post("/parse-text", auth, async (req, res) => {
       return res.status(400).json({ message: "Text is required" });
     }
 
+    // Now this will work with the update
     const result = await pythonService.analyzeResume(text, target_role);
     return res.json(result);
 
@@ -147,7 +146,7 @@ router.post("/parse-text", auth, async (req, res) => {
   }
 });
 
-// Roadmap Generation
+// 2. Roadmap Generation
 router.post("/roadmap", auth, async (req, res) => {
   try {
     const { skills, role } = req.body;
@@ -165,7 +164,7 @@ router.post("/roadmap", auth, async (req, res) => {
   }
 });
 
-// Skill Gap Analyzer
+// 3. Skill Gap Analyzer
 router.post("/skill-gap", auth, async (req, res) => {
   try {
     const { resumeSkills, targetRole } = req.body;
