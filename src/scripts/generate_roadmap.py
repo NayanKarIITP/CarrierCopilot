@@ -81,6 +81,9 @@ import sys
 import json
 import os
 import random
+from dotenv import load_dotenv 
+
+load_dotenv()
 
 # 1. Try Imports
 try:
@@ -130,7 +133,7 @@ def generate_real_roadmap(skills, role):
         return get_fallback_roadmap(skills, role)
 
     # B. Auth
-    api_key = "AIzaSyDi2HIoJAS_urzrmDWSmR3vZteURUptPGs"
+    api_key=os.getenv("GEMINI_API_KEY")
     # IF ENV FAILS, PASTE KEY HERE FOR TESTING:
     # api_key = "AIzaSy..." 
 
@@ -139,7 +142,7 @@ def generate_real_roadmap(skills, role):
 
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        model = genai.GenerativeModel('gemini-flash-latest')
 
         # C. The Smart Prompt
         prompt = f"""

@@ -174,6 +174,9 @@
 import json
 import os
 import sys
+from dotenv import load_dotenv 
+
+load_dotenv()
 
 # 1. SETUP: Try to import the AI Library
 try:
@@ -191,14 +194,14 @@ def get_market_trends():
         return get_fallback_data()
 
     # B. Auth
-    API_KEY = "AIzaSyDi2HIoJAS_urzrmDWSmR3vZteURUptPGs"
+    API_KEY = os.getenv("GEMINI_API_KEY")
     if not API_KEY:
         print("ERROR: API Key is missing.", file=sys.stderr)
         return get_fallback_data()
 
     try:
         genai.configure(api_key=API_KEY)
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        model = genai.GenerativeModel('gemini-flash-latest')
         
         # C. PROMPT FOR REAL DATA (Optimized for Charts)
         prompt = """

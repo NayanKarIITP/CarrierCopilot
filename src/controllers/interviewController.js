@@ -620,6 +620,183 @@
 
 
 
+// // src/controllers/interviewController.js
+// const Interview = require("../models/Interview");
+// const pythonService = require("../services/pythonService");
+
+// /**
+//  * 1. Start a New Interview Session
+//  */
+// exports.startSession = async (req, res) => {
+//   try {
+//     const { role, level } = req.body;
+//     const sessionId = Date.now().toString();
+
+//     console.log(`🚀 Starting session for ${role} (${level})...`);
+
+//     // 1. Call Python Service
+//     const q = await pythonService.getInterviewQuestion(role || "Software Engineer", level || "Mid-Level");
+
+//     // 🛡️ Check for null response
+//     if (!q) {
+//         console.error("❌ Python Service returned null. Using fallback.");
+//         return res.json({
+//             success: true,
+//             sessionId,
+//             question: {
+//                 _id: Date.now().toString(),
+//                 text: "Could not generate a specific question. Please tell me about your background.", 
+//                 followUp: "What is your strongest technical skill?",
+//                 difficulty: level || "Mid-Level"
+//             }
+//         });
+//     }
+
+//     return res.json({
+//       success: true,
+//       sessionId,
+//       question: {
+//         _id: Date.now().toString(),
+//         text: q.question || q.text || "Tell me about yourself.",
+//         followUp: q.follow_up || q.followUp || "",
+//         difficulty: q.difficulty || level
+//       }
+//     });
+
+//   } catch (err) {
+//     console.error("🔥 Start Session Error:", err);
+//     return res.status(500).json({ success: false, message: "Failed to start session" });
+//   }
+// };
+// /**
+//  * 2. Get Next Question
+//  * Called when user clicks "Next Question"
+//  */
+// exports.getQuestion = async (req, res) => {
+//   try {
+//     // ✅ FIX 1: Get sessionId from the frontend request
+//     const { role, level, sessionId } = req.body; 
+    
+//     console.log(`🔄 Fetching Next Question for Session: ${sessionId}`);
+
+//     // ✅ FIX 2: Pass sessionId to the service
+//     // This tells the service to hit the '/next-question' endpoint instead of '/start'
+//     const response = await pythonService.getInterviewQuestion(
+//         role || "Software Engineer", 
+//         level || "Mid-Level", 
+//         sessionId // <--- THIS WAS MISSING
+//     );
+
+//     // 🛡️ Handle null response (prevents crashes)
+//     if (!response) {
+//         return res.json({
+//             success: true,
+//             question: {
+//                 _id: Date.now().toString(),
+//                 text: "Describe a challenging technical problem you solved.",
+//                 followUp: "How did you debug it?",
+//                 difficulty: level,
+//             }
+//         });
+//     }
+
+//     // Robust Data Unpacking
+//     let questionText = response.question || "Could not generate question.";
+//     let followUpText = response.follow_up || "";
+
+//     // Handle nested object edge case
+//     if (typeof response.question === 'object') {
+//         questionText = response.question.question;
+//         followUpText = response.question.follow_up;
+//     }
+
+//     return res.json({
+//       success: true,
+//       question: {
+//         _id: Date.now().toString(),
+//         text: questionText,
+//         followUp: followUpText,
+//         difficulty: response.difficulty || level,
+//       }
+//     });
+
+//   } catch (err) {
+//     console.error("Get Question Error:", err);
+//     return res.status(500).json({ success: false, message: "Server error" });
+//   }
+// };
+// /**
+//  * 3. Analyze Answer
+//  * Process transcript with AI
+//  */
+// exports.analyze = async (req, res) => {
+//   try {
+//     const { transcript, question } = req.body;
+    
+//     if (!transcript) {
+//         return res.status(400).json({ success: false, message: "Transcript required" });
+//     }
+
+//     const analysis = await pythonService.analyzeInterview(transcript);
+    
+//     // Optional: Save to DB
+//     let session = null;
+//     if (req.user) {
+//       try {
+//           session = await Interview.create({
+//             userId: req.user._id,
+//             question: question || "Unknown",
+//             transcript,
+//             analysis: analysis || {}, // Ensure analysis isn't null
+//           });
+//       } catch (dbErr) {
+//           console.warn("⚠️ Failed to save to DB:", dbErr.message);
+//       }
+//     }
+
+//     return res.json({ 
+//         success: true, 
+//         data: { analysis: analysis || {}, session } 
+//     });
+
+//   } catch (err) {
+//     console.error("Analysis Error:", err);
+//     return res.status(500).json({ success: false, message: "Analysis failed" });
+//   }
+// };
+
+// /**
+//  * 4. Frame Metrics (Video Analysis)
+//  */
+// exports.getFrameMetrics = async (req, res) => {
+//   try {
+//     const { image_base64 } = req.body;
+//     if (!image_base64) return res.status(400).json({ success: false, message: "No image data" });
+
+//     const metrics = await pythonService.getFrameMetrics(image_base64);
+    
+//     return res.json({ success: true, metrics });
+//   } catch (err) {
+//     return res.json({ success: false, metrics: { emotion: "Neutral", confidence: 0 } });
+//   }
+// };
+
+// /**
+//  * 5. List Sessions (History)
+//  */
+// exports.listSessions = async (req, res) => {
+//   try {
+//     const sessions = await Interview.find({ userId: req.user._id }).sort({ createdAt: -1 });
+//     return res.json({ success: true, data: sessions });
+//   } catch (err) {
+//     return res.status(500).json({ success: false, message: "Server error" });
+//   }
+// }
+
+
+
+
+
 // src/controllers/interviewController.js
 const Interview = require("../models/Interview");
 const pythonService = require("../services/pythonService");
@@ -634,19 +811,17 @@ exports.startSession = async (req, res) => {
 
     console.log(`🚀 Starting session for ${role} (${level})...`);
 
-    // 1. Call Python Service
     const q = await pythonService.getInterviewQuestion(role || "Software Engineer", level || "Mid-Level");
 
-    // 🛡️ Check for null response
+    // Fallback if Python fails
     if (!q) {
-        console.error("❌ Python Service returned null. Using fallback.");
         return res.json({
             success: true,
             sessionId,
             question: {
                 _id: Date.now().toString(),
-                text: "Could not generate a specific question. Please tell me about your background.", 
-                followUp: "What is your strongest technical skill?",
+                text: "Could not generate specific question. Tell me about your background.",
+                followUp: "What is your strongest skill?",
                 difficulty: level || "Mid-Level"
             }
         });
@@ -668,46 +843,44 @@ exports.startSession = async (req, res) => {
     return res.status(500).json({ success: false, message: "Failed to start session" });
   }
 };
+
 /**
- * 2. Get Next Question
- * Called when user clicks "Next Question"
+ * 2. Get Next Question (Robust Version)
  */
 exports.getQuestion = async (req, res) => {
   try {
-    // ✅ FIX 1: Get sessionId from the frontend request
     const { role, level, sessionId } = req.body; 
-    
     console.log(`🔄 Fetching Next Question for Session: ${sessionId}`);
 
-    // ✅ FIX 2: Pass sessionId to the service
-    // This tells the service to hit the '/next-question' endpoint instead of '/start'
     const response = await pythonService.getInterviewQuestion(
         role || "Software Engineer", 
         level || "Mid-Level", 
-        sessionId // <--- THIS WAS MISSING
+        sessionId 
     );
 
-    // 🛡️ Handle null response (prevents crashes)
+    const fallbackQ = {
+        _id: Date.now().toString(),
+        text: "Describe a challenging technical project you worked on recently.",
+        followUp: "What were the key trade-offs you made?",
+        difficulty: level || "Mid-Level"
+    };
+
     if (!response) {
-        return res.json({
-            success: true,
-            question: {
-                _id: Date.now().toString(),
-                text: "Describe a challenging technical problem you solved.",
-                followUp: "How did you debug it?",
-                difficulty: level,
-            }
-        });
+        return res.json({ success: true, question: fallbackQ });
     }
 
-    // Robust Data Unpacking
-    let questionText = response.question || "Could not generate question.";
-    let followUpText = response.follow_up || "";
+    let questionText = response.text || response.question || "";
+    let followUpText = response.follow_up || response.followUp || "";
 
-    // Handle nested object edge case
-    if (typeof response.question === 'object') {
-        questionText = response.question.question;
-        followUpText = response.question.follow_up;
+    if (typeof response.question === 'object' && response.question !== null) {
+        questionText = response.question.text || response.question.question || questionText;
+        followUpText = response.question.follow_up || response.question.followUp || followUpText;
+    }
+
+    // Force fallback if text is missing or is the error string
+    if (!questionText || questionText === "Could not generate question.") {
+        questionText = fallbackQ.text;
+        followUpText = fallbackQ.followUp;
     }
 
     return res.json({
@@ -722,24 +895,43 @@ exports.getQuestion = async (req, res) => {
 
   } catch (err) {
     console.error("Get Question Error:", err);
-    return res.status(500).json({ success: false, message: "Server error" });
+    return res.json({ 
+        success: true, 
+        question: {
+            _id: Date.now().toString(),
+            text: "Tell me about your experience working in a team.",
+            followUp: "How do you handle conflicts?",
+            difficulty: "Behavioral"
+        }
+    });
   }
 };
+
 /**
  * 3. Analyze Answer
- * Process transcript with AI
  */
 exports.analyze = async (req, res) => {
   try {
     const { transcript, question } = req.body;
     
+    // Allow empty transcript to pass through with dummy data
     if (!transcript) {
-        return res.status(400).json({ success: false, message: "Transcript required" });
+        return res.json({ 
+            success: true, 
+            data: { 
+                analysis: {
+                    strengths: ["N/A"],
+                    improvements: ["No answer provided"],
+                    clarity_score: 0
+                }, 
+                session: null 
+            } 
+        });
     }
 
     const analysis = await pythonService.analyzeInterview(transcript);
     
-    // Optional: Save to DB
+    // Save to DB (Optional)
     let session = null;
     if (req.user) {
       try {
@@ -747,11 +939,9 @@ exports.analyze = async (req, res) => {
             userId: req.user._id,
             question: question || "Unknown",
             transcript,
-            analysis: analysis || {}, // Ensure analysis isn't null
+            analysis: analysis || {},
           });
-      } catch (dbErr) {
-          console.warn("⚠️ Failed to save to DB:", dbErr.message);
-      }
+      } catch (dbErr) { console.warn("DB Save Error:", dbErr.message); }
     }
 
     return res.json({ 
@@ -761,20 +951,25 @@ exports.analyze = async (req, res) => {
 
   } catch (err) {
     console.error("Analysis Error:", err);
-    return res.status(500).json({ success: false, message: "Analysis failed" });
+    // Return dummy success to prevent frontend crash
+    return res.json({ 
+        success: true, 
+        data: { 
+            analysis: { strengths: [], improvements: [], clarity_score: 0 } 
+        } 
+    });
   }
 };
 
 /**
- * 4. Frame Metrics (Video Analysis)
+ * 4. Frame Metrics (Visuals)
  */
 exports.getFrameMetrics = async (req, res) => {
   try {
     const { image_base64 } = req.body;
-    if (!image_base64) return res.status(400).json({ success: false, message: "No image data" });
+    if (!image_base64) return res.json({ success: false, metrics: { emotion: "Neutral", confidence: 0 } });
 
     const metrics = await pythonService.getFrameMetrics(image_base64);
-    
     return res.json({ success: true, metrics });
   } catch (err) {
     return res.json({ success: false, metrics: { emotion: "Neutral", confidence: 0 } });
@@ -786,9 +981,12 @@ exports.getFrameMetrics = async (req, res) => {
  */
 exports.listSessions = async (req, res) => {
   try {
+    // If no user, return empty list
+    if (!req.user) return res.json({ success: true, data: [] });
+
     const sessions = await Interview.find({ userId: req.user._id }).sort({ createdAt: -1 });
     return res.json({ success: true, data: sessions });
   } catch (err) {
     return res.status(500).json({ success: false, message: "Server error" });
   }
-}
+};

@@ -1101,7 +1101,9 @@ import re
 import json
 import sys
 from typing import Dict, Any
+from dotenv import load_dotenv 
 
+load_dotenv()
 # Ensure we can import local utils
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -1132,8 +1134,8 @@ except ImportError as e:
 # ⚙️ CONFIGURATION
 # ---------------------------------------------------------
 
-API_KEY = "AIzaSyDi2HIoJAS_urzrmDWSmR3vZteURUptPGs"
-MODEL_NAME = 'gemini-2.5-flash' 
+API_KEY =os.getenv("GEMINI_API_KEY")
+MODEL_NAME = 'gemini-flash-latest' 
 
 if AI_AVAILABLE and API_KEY:
     try:

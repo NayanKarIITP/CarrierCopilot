@@ -1,17 +1,21 @@
+
 // const express = require("express");
 // const router = express.Router();
 // const auth = require("../middleware/authMiddleware");
-// const pythonService = require("../services/pythonService");
-
 
 // const {
+//   startSession,
 //   getQuestion,
 //   analyze,
-//   listSessions
+//   listSessions,
+//   getFrameMetrics // ✅ Added this
 // } = require("../controllers/interviewController");
 
-// // Get new interview question
-// router.get("/question", getQuestion);
+// // Start a new session
+// router.post("/start", auth, startSession);
+
+// // Get next question (Changed to POST to accept session ID/Role)
+// router.post("/next-question", auth, getQuestion);
 
 // // Analyze interview (frame/voice/transcript)
 // router.post("/analyze", auth, analyze);
@@ -19,21 +23,8 @@
 // // List stored sessions
 // router.get("/sessions", auth, listSessions);
 
-// // NEW: frame metrics
-// router.post("/frame-metrics", auth, async (req, res) => {
-//   try {
-//     const { image_base64 } = req.body;
-//     if (!image_base64) {
-//       return res.status(400).json({ success: false, message: "image_base64 required" });
-//     }
-
-//     const metrics = await pythonService.getFrameMetrics(image_base64);
-//     return res.json({ success: true, metrics });
-//   } catch (err) {
-//     console.error("Frame metrics error:", err);
-//     return res.status(500).json({ success: false, message: "Server error" });
-//   }
-// });
+// // Frame metrics (Video Feed calls this)
+// router.post("/frame-metrics", auth, getFrameMetrics);
 
 // module.exports = router;
 
@@ -41,32 +32,34 @@
 
 
 
-
-const express = require("express");
+// src/routes/interviewRoutes.js
+const express = require('express');
 const router = express.Router();
-const auth = require("../middleware/authMiddleware");
+const interviewController = require('../controllers/interviewController');
 
-const {
-  startSession,
-  getQuestion,
-  analyze,
-  listSessions,
-  getFrameMetrics // ✅ Added this
-} = require("../controllers/interviewController");
+// Middleware to check if controller functions exist (Debugging safety)
+const checkHandler = (handler, name) => {
+    if (typeof handler !== 'function') {
+        console.error(`❌ Error: Controller function '${name}' is missing! Check interviewController.js exports.`);
+        // Return a dummy function to prevent server crash during startup
+        return (req, res) => res.status(500).json({ message: `Endpoint '${name}' not implemented` });
+    }
+    return handler;
+};
 
-// Start a new session
-router.post("/start", auth, startSession);
+// 1. Start Interview
+router.post('/start', checkHandler(interviewController.startSession, 'startSession'));
 
-// Get next question (Changed to POST to accept session ID/Role)
-router.post("/next-question", auth, getQuestion);
+// 2. Get Next Question
+router.post('/next-question', checkHandler(interviewController.getQuestion, 'getQuestion'));
 
-// Analyze interview (frame/voice/transcript)
-router.post("/analyze", auth, analyze);
+// 3. Analyze Answer
+router.post('/analyze', checkHandler(interviewController.analyze, 'analyze'));
 
-// List stored sessions
-router.get("/sessions", auth, listSessions);
+// 4. Frame Metrics (Visuals)
+router.post('/frame-metrics', checkHandler(interviewController.getFrameMetrics, 'getFrameMetrics'));
 
-// Frame metrics (Video Feed calls this)
-router.post("/frame-metrics", auth, getFrameMetrics);
+// 5. Session History (Optional)
+router.get('/history', checkHandler(interviewController.listSessions, 'listSessions'));
 
 module.exports = router;

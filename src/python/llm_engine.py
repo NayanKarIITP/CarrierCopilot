@@ -1,103 +1,109 @@
-import os
-import re
-import sys
+# import os
+# import re
+# import sys
 
-# 1. Try to import Google AI Library
-try:
-    import google.generativeai as genai
-    AI_AVAILABLE = True
-except ImportError:
-    print("⚠️ Google AI SDK not found. Run: pip install google-generativeai")
-    AI_AVAILABLE = False
+# # 1. Try to import Google AI Library
+# try:
+#     import google.generativeai as genai
+#     AI_AVAILABLE = True
+# except ImportError:
+#     print("⚠️ Google AI SDK not found. Run: pip install google-generativeai")
+#     AI_AVAILABLE = False
 
-# ---------------------------------------------------------
-# CONFIGURATION
-# ---------------------------------------------------------
+# # ---------------------------------------------------------
+# # CONFIGURATION
+# # ---------------------------------------------------------
 
-# ✅ FIX 1: Variable name MUST be uppercase to match usage below
-API_KEY = "AIzaSyDi2HIoJAS_urzrmDWSmR3vZteURUptPGs"
+# # ✅ FIX 1: Variable name MUST be uppercase to match usage below
+# # api_key = "AIzaSyDi2HIoJAS_urzrmDWSmR3vZteURUptPGs"
 
-if AI_AVAILABLE and API_KEY:
-    try:
-        genai.configure(api_key=API_KEY)
-    except Exception as e:
-        print(f"⚠️ Configuration Error: {e}")
+# api_key = os.getenv("GEMINI_API_KEY")
 
-# ✅ FIX 2: Use the model explicitly listed in your terminal
-DEFAULT_MODEL = 'gemini-2.5-flash' 
+# if AI_AVAILABLE and api_key:
+#     try:
+#         genai.configure(api_key=api_key)
+#     except Exception as e:
+#         print(f"⚠️ Configuration Error: {e}")
 
-# ---------------------------------------------------------
-# HELPER FUNCTIONS
-# ---------------------------------------------------------
+# # ✅ FIX 2: Use the model explicitly listed in your terminal
+# DEFAULT_MODEL = 'gemini-2.5-flash' 
 
-def clean_json_output(text: str) -> str:
-    """
-    Real-World Cleaner: Removes Markdown formatting and finds the valid JSON block.
-    """
-    if not text: return "{}"
+# # ---------------------------------------------------------
+# # HELPER FUNCTIONS
+# # ---------------------------------------------------------
+
+# def clean_json_output(text: str) -> str:
+#     """
+#     Real-World Cleaner: Removes Markdown formatting and finds the valid JSON block.
+#     """
+#     if not text: return "{}"
     
-    text = re.sub(r"```json\s*", "", text)
-    text = re.sub(r"```", "", text)
+#     text = re.sub(r"```json\s*", "", text)
+#     text = re.sub(r"```", "", text)
     
-    start_index = text.find('{')
-    end_index = text.rfind('}')
+#     start_index = text.find('{')
+#     end_index = text.rfind('}')
     
-    if start_index != -1 and end_index != -1:
-        return text[start_index : end_index + 1]
+#     if start_index != -1 and end_index != -1:
+#         return text[start_index : end_index + 1]
     
-    return text.strip()
+#     return text.strip()
 
-# ---------------------------------------------------------
-# MAIN LLM FUNCTION
-# ---------------------------------------------------------
+# # ---------------------------------------------------------
+# # MAIN LLM FUNCTION
+# # ---------------------------------------------------------
 
-def parse_with_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
-    if not AI_AVAILABLE:
-        print("❌ Error: AI Library missing.")
-        return "{}"
+# def parse_with_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
+#     if not AI_AVAILABLE:
+#         print("❌ Error: AI Library missing.")
+#         return "{}"
 
-    if not API_KEY:
-        print("❌ Error: API Key missing.")
-        return "{}"
+#     if not API_KEY:
+#         print("❌ Error: API Key missing.")
+#         return "{}"
 
-    try:
-        # print(f"🤖 Calling Gemini ({model_name})...")
-        model = genai.GenerativeModel(model_name)
-        response = model.generate_content(prompt)
-        return clean_json_output(response.text)
+#     try:
+#         # print(f"🤖 Calling Gemini ({model_name})...")
+#         model = genai.GenerativeModel(model_name)
+#         response = model.generate_content(prompt)
+#         return clean_json_output(response.text)
 
-    except Exception as e:
-        print(f"⚠️ Gemini API Failed: {e}")
-        return "{}"
+#     except Exception as e:
+#         print(f"⚠️ Gemini API Failed: {e}")
+#         return "{}"
 
-# ---------------------------------------------------------
-# TEST EXECUTION
-# ---------------------------------------------------------
-if __name__ == "__main__":
-    test_prompt = "Return a JSON object with a greeting message."
-    print(parse_with_llm(test_prompt))
-
-
+# # ---------------------------------------------------------
+# # TEST EXECUTION
+# # ---------------------------------------------------------
+# if __name__ == "__main__":
+#     test_prompt = "Return a JSON object with a greeting message."
+#     print(parse_with_llm(test_prompt))
 
 
 
+
+
+
+#llm_engine.py
 import os
 import re
 import json
 import google.generativeai as genai
 from google.api_core import exceptions
+from dotenv import load_dotenv 
 
+load_dotenv()
 # ---------------------------------------------------------
 # CONFIGURATION
 # ---------------------------------------------------------
 
 # Try to get key from Environment (Best Practice)
 # If not found, you can fallback to a string, but AVOID committing it.
-API_KEY ="AIzaSyCCs3_htORG197m0bz6SeVjqERnlfco5I4"
+API_KEY = os.getenv("GEMINI_API_KEY")
 
 # CORRECTED MODEL NAME: 'gemini-1.5-flash' is the current stable fast model.
 # 'gemini-2.0-flash-exp' is available for experimental use.
-DEFAULT_MODEL = 'gemini-2.5-flash' 
+DEFAULT_MODEL = 'gemini-flash-latest' 
 
 AI_AVAILABLE = False
 

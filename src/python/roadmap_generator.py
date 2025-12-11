@@ -466,7 +466,9 @@ import os
 import json
 import sys
 import google.generativeai as genai
+from dotenv import load_dotenv 
 
+load_dotenv()
 # ---------------------------------------------------------
 # 🔧 LOGGING HELPER (Prevents Node.js JSON Errors)
 # ---------------------------------------------------------
@@ -485,7 +487,7 @@ def log_debug(message: str):
 # ---------------------------------------------------------
 
 # ✅ FIX: Hardcoded API Key to ensure connectivity
-API_KEY = "AIzaSyDi2HIoJAS_urzrmDWSmR3vZteURUptPGs"
+API_KEY= os.getenv("GEMINI_API_KEY")
 
 if not API_KEY:
     log_debug("❌ Error: API Key is missing.")
@@ -497,7 +499,7 @@ try:
 except Exception as e:
     log_debug(f"❌ Config Error: {e}")
 
-MODEL_NAME = 'gemini-2.5-flash'
+MODEL_NAME = 'gemini-flash-latest'
 
 # ---------------------------------------------------------
 # 🧠 AI PROMPT
