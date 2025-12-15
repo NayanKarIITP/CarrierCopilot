@@ -62,4 +62,7 @@ router.post('/frame-metrics', checkHandler(interviewController.getFrameMetrics, 
 // 5. Session History (Optional)
 router.get('/history', checkHandler(interviewController.listSessions, 'listSessions'));
 
+// This matches: /api/interview/session/:sessionId
+router.get('/session/:sessionId', checkHandler(interviewController.getSessionById, 'getSessionById'));
+
 module.exports = router;

@@ -462,6 +462,163 @@
 
 
 
+# import os
+# import json
+# import sys
+# import google.generativeai as genai
+# from dotenv import load_dotenv 
+
+# load_dotenv()
+# # ---------------------------------------------------------
+# # 🔧 LOGGING HELPER (Prevents Node.js JSON Errors)
+# # ---------------------------------------------------------
+# def log_debug(message: str):
+#     """Writes to stderr so it doesn't break the JSON output in stdout."""
+#     try:
+#         # Strip emojis to prevent Windows console crashes
+#         safe_message = message.encode('ascii', 'ignore').decode('ascii')
+#         sys.stderr.write(f"[PYTHON LOG] {safe_message}\n")
+#         sys.stderr.flush()
+#     except Exception:
+#         pass
+
+# # ---------------------------------------------------------
+# # ⚙️ CONFIGURATION
+# # ---------------------------------------------------------
+
+# # ✅ FIX: Hardcoded API Key to ensure connectivity
+# API_KEY= os.getenv("GEMINI_API_KEY")
+
+# if not API_KEY:
+#     log_debug("❌ Error: API Key is missing.")
+#     print(json.dumps({"error": "API Key missing"}))
+#     sys.exit(1)
+
+# try:
+#     genai.configure(api_key=API_KEY)
+# except Exception as e:
+#     log_debug(f"❌ Config Error: {e}")
+
+# MODEL_NAME = 'gemini-flash-latest'
+
+# # ---------------------------------------------------------
+# # 🧠 AI PROMPT
+# # ---------------------------------------------------------
+# ROADMAP_PROMPT = """
+# Act as a Senior Career Coach. Create a step-by-step learning roadmap for a user wanting to become a "{role}".
+# The user already has these skills: {skills}.
+
+# Requirements:
+# 1. Compare their current skills with the target role.
+# 2. Generate 5 distinct steps to bridge the gap.
+# 3. Steps should be: "Foundation", "Skill Gap Fill", "Projects", "Advanced Concepts", "Job Prep".
+# 4. Suggest real-world tools, courses (Udemy/Coursera), and project ideas.
+
+# OUTPUT FORMAT (Strict JSON, No Markdown):
+# {{
+#     "level": "Beginner/Intermediate/Advanced",
+#     "roadmap": [
+#         {{
+#             "step": 1,
+#             "title": "Refresh Foundations",
+#             "description": "Focus on...",
+#             "type": "skills",
+#             "items": ["HTML", "CSS"]
+#         }},
+#         {{
+#             "step": 2,
+#             "title": "Master New Tools",
+#             "description": "Learn these frameworks...",
+#             "type": "gaps",
+#             "items": ["React", "Node.js"]
+#         }},
+#         {{
+#             "step": 3,
+#             "title": "Build Portfolio",
+#             "description": "Create these projects...",
+#             "type": "projects",
+#             "items": [{{ "title": "E-commerce App", "tech": "MERN Stack" }}]
+#         }}
+#     ]
+# }}
+# """
+
+# # ---------------------------------------------------------
+# # 🚀 GENERATION LOGIC
+# # ---------------------------------------------------------
+# def generate_roadmap(skills, target_role):
+#     log_debug(f"Generating roadmap for {target_role}...")
+    
+#     try:
+#         # Default fallback if skills are empty
+#         skills_str = ", ".join(skills) if skills else "General Computer Science knowledge"
+        
+#         model = genai.GenerativeModel(MODEL_NAME)
+#         prompt = ROADMAP_PROMPT.format(role=target_role, skills=skills_str)
+        
+#         response = model.generate_content(prompt)
+        
+#         # Clean response
+#         raw_text = response.text.replace("```json", "").replace("```", "").strip()
+        
+#         # Parse JSON to ensure validity
+#         data = json.loads(raw_text)
+#         return data
+
+#     except Exception as e:
+#         log_debug(f"Generation Failed: {e}")
+#         # Return safe fallback JSON
+#         return {
+#             "level": "Assessment Failed",
+#             "roadmap": [
+#                 {
+#                     "step": 1,
+#                     "title": "System Error",
+#                     "description": "We couldn't generate a custom plan. Please try again.",
+#                     "type": "error",
+#                     "items": ["Check Connection", "Verify API Key"]
+#                 }
+#             ]
+#         }
+
+# # ---------------------------------------------------------
+# # 🏁 MAIN EXECUTION
+# # ---------------------------------------------------------
+# if __name__ == "__main__":
+#     # ✅ FIX: Windows Encoding Crash Prevention
+#     if sys.platform == "win32":
+#         sys.stdout.reconfigure(encoding='utf-8')
+
+#     try:
+#         # Read input from Node.js (stdin)
+#         input_data = sys.stdin.read()
+        
+#         if not input_data:
+#             log_debug("No input received from Node.js")
+#             # Fallback for manual testing
+#             request = {"skills": ["JavaScript"], "role": "Full Stack Developer"}
+#         else:
+#             request = json.loads(input_data)
+
+#         skills = request.get("skills", [])
+#         role = request.get("role", "Software Engineer")
+
+#         result = generate_roadmap(skills, role)
+        
+#         # Print ONLY the valid JSON to stdout
+#         print(json.dumps(result, indent=2))
+
+#     except Exception as e:
+#         log_debug(f"Critical Script Error: {e}")
+#         print(json.dumps({"error": str(e)}))
+
+
+
+
+
+
+
+
 import os
 import json
 import sys
@@ -469,13 +626,13 @@ import google.generativeai as genai
 from dotenv import load_dotenv 
 
 load_dotenv()
+
 # ---------------------------------------------------------
-# 🔧 LOGGING HELPER (Prevents Node.js JSON Errors)
+# 🔧 LOGGING HELPER
 # ---------------------------------------------------------
 def log_debug(message: str):
     """Writes to stderr so it doesn't break the JSON output in stdout."""
     try:
-        # Strip emojis to prevent Windows console crashes
         safe_message = message.encode('ascii', 'ignore').decode('ascii')
         sys.stderr.write(f"[PYTHON LOG] {safe_message}\n")
         sys.stderr.flush()
@@ -485,9 +642,7 @@ def log_debug(message: str):
 # ---------------------------------------------------------
 # ⚙️ CONFIGURATION
 # ---------------------------------------------------------
-
-# ✅ FIX: Hardcoded API Key to ensure connectivity
-API_KEY= os.getenv("GEMINI_API_KEY")
+API_KEY = os.getenv("GEMINI_API_KEY")
 
 if not API_KEY:
     log_debug("❌ Error: API Key is missing.")
@@ -499,10 +654,10 @@ try:
 except Exception as e:
     log_debug(f"❌ Config Error: {e}")
 
-MODEL_NAME = 'gemini-flash-latest'
+MODEL_NAME = 'gemini-flash-latest' # Ensure using a valid model name
 
 # ---------------------------------------------------------
-# 🧠 AI PROMPT
+# 🧠 AI PROMPT (UPDATED FOR DYNAMIC RESOURCES)
 # ---------------------------------------------------------
 ROADMAP_PROMPT = """
 Act as a Senior Career Coach. Create a step-by-step learning roadmap for a user wanting to become a "{role}".
@@ -512,7 +667,7 @@ Requirements:
 1. Compare their current skills with the target role.
 2. Generate 5 distinct steps to bridge the gap.
 3. Steps should be: "Foundation", "Skill Gap Fill", "Projects", "Advanced Concepts", "Job Prep".
-4. Suggest real-world tools, courses (Udemy/Coursera), and project ideas.
+4. For EVERY step, provide specific "resources" (Books, Videos, Courses) that are highly rated.
 
 OUTPUT FORMAT (Strict JSON, No Markdown):
 {{
@@ -520,24 +675,43 @@ OUTPUT FORMAT (Strict JSON, No Markdown):
     "roadmap": [
         {{
             "step": 1,
-            "title": "Refresh Foundations",
-            "description": "Focus on...",
+            "title": "Solidify Foundations",
+            "description": "Master the basics of...",
+            "duration": "2 Weeks",
             "type": "skills",
-            "items": ["HTML", "CSS"]
-        }},
-        {{
-            "step": 2,
-            "title": "Master New Tools",
-            "description": "Learn these frameworks...",
-            "type": "gaps",
-            "items": ["React", "Node.js"]
+            "items": ["React Hooks", "Redux"],
+            "resources": [
+                {{
+                    "title": "Namaste React by Akshay Saini",
+                    "type": "video"
+                }},
+                {{
+                    "title": "You Don't Know JS (Book Series)",
+                    "type": "book"
+                }},
+                {{
+                    "title": "Official Redux Documentation",
+                    "type": "article"
+                }}
+            ]
         }},
         {{
             "step": 3,
-            "title": "Build Portfolio",
-            "description": "Create these projects...",
+            "title": "Build Real World Projects",
+            "description": "Apply your skills...",
+            "duration": "4 Weeks",
             "type": "projects",
-            "items": [{{ "title": "E-commerce App", "tech": "MERN Stack" }}]
+            "items": ["E-commerce App", "Task Manager"],
+            "resources": [
+                {{
+                    "title": "Build Netflix Clone with MERN Stack",
+                    "type": "video"
+                }},
+                {{
+                    "title": "Full Stack Open (University of Helsinki)",
+                    "type": "course"
+                }}
+            ]
         }}
     ]
 }}
@@ -550,7 +724,6 @@ def generate_roadmap(skills, target_role):
     log_debug(f"Generating roadmap for {target_role}...")
     
     try:
-        # Default fallback if skills are empty
         skills_str = ", ".join(skills) if skills else "General Computer Science knowledge"
         
         model = genai.GenerativeModel(MODEL_NAME)
@@ -561,22 +734,21 @@ def generate_roadmap(skills, target_role):
         # Clean response
         raw_text = response.text.replace("```json", "").replace("```", "").strip()
         
-        # Parse JSON to ensure validity
+        # Parse JSON
         data = json.loads(raw_text)
         return data
 
     except Exception as e:
         log_debug(f"Generation Failed: {e}")
-        # Return safe fallback JSON
         return {
-            "level": "Assessment Failed",
+            "level": "Error",
             "roadmap": [
                 {
                     "step": 1,
-                    "title": "System Error",
-                    "description": "We couldn't generate a custom plan. Please try again.",
+                    "title": "Service Unavailable",
+                    "description": "Could not generate roadmap at this time.",
                     "type": "error",
-                    "items": ["Check Connection", "Verify API Key"]
+                    "resources": []
                 }
             ]
         }
@@ -585,17 +757,13 @@ def generate_roadmap(skills, target_role):
 # 🏁 MAIN EXECUTION
 # ---------------------------------------------------------
 if __name__ == "__main__":
-    # ✅ FIX: Windows Encoding Crash Prevention
     if sys.platform == "win32":
         sys.stdout.reconfigure(encoding='utf-8')
 
     try:
-        # Read input from Node.js (stdin)
         input_data = sys.stdin.read()
         
         if not input_data:
-            log_debug("No input received from Node.js")
-            # Fallback for manual testing
             request = {"skills": ["JavaScript"], "role": "Full Stack Developer"}
         else:
             request = json.loads(input_data)
@@ -604,8 +772,6 @@ if __name__ == "__main__":
         role = request.get("role", "Software Engineer")
 
         result = generate_roadmap(skills, role)
-        
-        # Print ONLY the valid JSON to stdout
         print(json.dumps(result, indent=2))
 
     except Exception as e:

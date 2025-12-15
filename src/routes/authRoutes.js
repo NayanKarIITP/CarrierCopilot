@@ -25,6 +25,7 @@
 
 
 
+
 const express = require("express");
 const router = express.Router();
 
@@ -38,9 +39,9 @@ const {
 const authMiddleware = require("../middleware/authMiddleware");
 
 // Public routes
-router.post("/register", registerUser);
+router.post("/signup", registerUser); // ✅ FIXED: Changed from '/register' to '/signup'
 router.post("/login", loginUser);
-router.post("/google", googleAuth);
+router.post("/google", googleAuth);   // ✅ Correct: Matches api.ts
 
 // Protected route
 router.get("/me", authMiddleware, getUserProfile);

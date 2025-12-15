@@ -756,6 +756,8 @@
 
 
 
+
+#interview_assistant.py
 import json
 import re
 import os
@@ -920,7 +922,7 @@ def analyze_answer(transcript: str, question_context: str = "General Interview")
 
     except Exception as e:
         print(f"⚠️ Analysis Failed: {e}")
-        # ✅ FALLBACK: Return dummy analysis so frontend doesn't break
+        # FALLBACK: Return dummy analysis so frontend doesn't break
         return {
             "filler_words_count": {}, 
             "confidence_estimate": 70,
