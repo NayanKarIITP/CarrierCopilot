@@ -1206,21 +1206,84 @@ exports.listSessions = async (req, res) => {
 };
 
 /**
- * 6. Get Session Report
+ * 6. Get Aggregated Session Report
+ * Calculates average scores across ALL questions in the session.
  */
 exports.getSessionById = async (req, res) => {
   try {
     const { sessionId } = req.params;
-    console.log(`🔎 Fetching report for session: ${sessionId}`);
+    console.log(`🔎 Generating Aggregate Report for Session: ${sessionId}`);
 
-    // Get the latest entry for this session
-    const sessionData = await Interview.findOne({ sessionId }).sort({ createdAt: -1 });
+    // 1. Fetch ALL questions for this session ID
+    const sessions = await Interview.find({ sessionId }).sort({ createdAt: 1 });
 
-    if (!sessionData) {
+    if (!sessions || sessions.length === 0) {
         return res.json({ success: false, message: "No data found." });
     }
 
-    return res.json({ success: true, data: sessionData });
+    // 2. Calculate Averages & Merge Feedback
+    let totalClarity = 0;
+    let totalConfidence = 0;
+    let allStrengths = [];
+    let allImprovements = [];
+    let fillerWordsTotal = {};
+
+    sessions.forEach(s => {
+        const ana = s.analysis || {};
+        
+        // Sum scores
+        totalClarity += ana.clarity_score || 0;
+        totalConfidence += ana.confidence_estimate || 0;
+
+        // Collect feedback
+        if (Array.isArray(ana.strengths)) allStrengths.push(...ana.strengths);
+        if (Array.isArray(ana.improvements)) allImprovements.push(...ana.improvements);
+
+        // Sum filler words
+        if (ana.filler_words_count) {
+            Object.entries(ana.filler_words_count).forEach(([word, count]) => {
+                fillerWordsTotal[word] = (fillerWordsTotal[word] || 0) + count;
+            });
+        }
+    });
+
+    // Compute Averages
+    const count = sessions.length;
+    const avgClarity = Math.round(totalClarity / count);
+    const avgConfidence = Math.round(totalConfidence / count);
+
+    // Deduplicate feedback (taking top unique ones)
+    const uniqueStrengths = [...new Set(allStrengths)].slice(0, 5);
+    const uniqueImprovements = [...new Set(allImprovements)].slice(0, 5);
+
+    // 3. Construct the Aggregated Response
+    const aggregatedData = {
+        _id: sessions[0]._id, // ID of first doc (for reference)
+        sessionId: sessionId,
+        role: sessions[0].role,
+        level: sessions[0].level,
+        createdAt: sessions[0].createdAt,
+        
+        // Global Stats
+        analysis: {
+            clarity_score: avgClarity,
+            confidence_estimate: avgConfidence,
+            strengths: uniqueStrengths,
+            improvements: uniqueImprovements,
+            filler_words_count: fillerWordsTotal
+        },
+
+        // Detailed History (List of all Q&As)
+        history: sessions.map((s, index) => ({
+            number: index + 1,
+            question: s.question,
+            transcript: s.transcript,
+            score: s.analysis?.clarity_score || 0
+        }))
+    };
+
+    return res.json({ success: true, data: aggregatedData });
+
   } catch (err) {
     console.error("Get Session Error:", err);
     return res.status(500).json({ success: false, message: "Server error" });
