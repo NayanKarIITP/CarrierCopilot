@@ -191,6 +191,11 @@ import numpy as np
 import mediapipe as mp
 import math
 
+if not hasattr(mp, "solutions"):
+    raise RuntimeError(
+        "MediaPipe failed to load. Ensure Python <= 3.11 and mediapipe==0.10.14"
+    )
+
 mp_face_mesh = mp.solutions.face_mesh
 
 # Landmarks for head pose (Canonical Face Mesh Indices)
