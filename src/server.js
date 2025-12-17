@@ -46,7 +46,6 @@
 
 
 
-
 const express = require("express");
 const app = express();
 const cors = require("cors");
@@ -54,30 +53,28 @@ require("dotenv").config();
 const cookieParser = require("cookie-parser");
 const path = require("path");
 
-// 1. CORS Configuration
+// ✅ CORS (ENV BASED)
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: process.env.CORS_ORIGIN || "http://localhost:3000",
     credentials: true,
   })
 );
 
-// 2. Serve Static Files (Uploads)
+// ✅ Static uploads
 const uploadsPath = path.join(__dirname, "uploads");
-console.log("📂 Serving uploads from:", uploadsPath);
 app.use("/uploads", express.static(uploadsPath));
 
-// 3. ✅ FIX: Increase Limits for Image Uploads (JSON & URL Encoded)
-app.use(express.json({ limit: "50mb" })); // Increased to 50mb to be safe
+// ✅ Body limits
+app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
-
 app.use(cookieParser());
 
-// 4. Database Connection
+// ✅ DB
 const connectDB = require("./config/db");
 connectDB();
 
-// 5. Routes
+// ✅ Routes
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/user", require("./routes/userRoutes"));
 app.use("/api/resume", require("./routes/resumeRoutes"));
@@ -88,5 +85,6 @@ app.use("/api/settings", require("./routes/settingsRoutes"));
 app.use("/api/trends", require("./routes/trendRoutes"));
 app.use("/api/dashboard", require("./routes/dashboardRoutes"));
 
+// ✅ PORT (Render compatible)
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
