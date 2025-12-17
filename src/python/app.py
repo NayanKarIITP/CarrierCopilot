@@ -1329,7 +1329,7 @@ def normalize_question(raw):
 
 @app.get("/")
 def health():
-    return {"status": "ok", "engine": "AI Career Copilot 2.0 Ready"}
+    return {"status": "ok", "engine": "AI Career Copilot Ready"}
 
 # 1️⃣ START INTERVIEW
 @app.post("/interview/start")
