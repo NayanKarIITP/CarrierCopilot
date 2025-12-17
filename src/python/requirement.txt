@@ -5,10 +5,3 @@ mediapipe
 numpy
 python-multipart
 python-dotenv
-
-
-
-
-venv\Scripts\activate
-uvicorn src.python.app:app --reload
-python src/scripts/market_trends.py
