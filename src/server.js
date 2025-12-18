@@ -53,28 +53,64 @@ require("dotenv").config();
 const cookieParser = require("cookie-parser");
 const path = require("path");
 
-// ✅ CORS (ENV BASED)
+/* ---------------------------------------------------
+   ✅ CORS CONFIG (VERCEL + LOCAL + PREVIEW SUPPORT)
+--------------------------------------------------- */
+
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "https://carrier-copilot.vercel.app",
+  "https://carrier-copilot-dl8qczfgk-nayankariitps-projects.vercel.app/",
+];
+
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "http://localhost:3000",
+    origin: function (origin, callback) {
+      // Allow requests without origin (Postman, server-to-server)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS blocked: ${origin}`));
+      }
+    },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-// ✅ Static uploads
+// ⚠️ REQUIRED for preflight requests
+app.options("*", cors());
+
+/* ---------------------------------------------------
+   ✅ STATIC FILES
+--------------------------------------------------- */
+
 const uploadsPath = path.join(__dirname, "uploads");
 app.use("/uploads", express.static(uploadsPath));
 
-// ✅ Body limits
+/* ---------------------------------------------------
+   ✅ BODY PARSING
+--------------------------------------------------- */
+
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(cookieParser());
 
-// ✅ DB
+/* ---------------------------------------------------
+   ✅ DATABASE
+--------------------------------------------------- */
+
 const connectDB = require("./config/db");
 connectDB();
 
-// ✅ Routes
+/* ---------------------------------------------------
+   ✅ ROUTES
+--------------------------------------------------- */
+
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/user", require("./routes/userRoutes"));
 app.use("/api/resume", require("./routes/resumeRoutes"));
@@ -85,6 +121,24 @@ app.use("/api/settings", require("./routes/settingsRoutes"));
 app.use("/api/trends", require("./routes/trendRoutes"));
 app.use("/api/dashboard", require("./routes/dashboardRoutes"));
 
-// ✅ PORT (Render compatible)
+/* ---------------------------------------------------
+   ✅ HEALTH CHECK (IMPORTANT FOR RENDER)
+--------------------------------------------------- */
+
+app.get("/", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "Career Copilot Backend is running 🚀",
+  });
+});
+
+/* ---------------------------------------------------
+   ✅ SERVER START (RENDER COMPATIBLE)
+--------------------------------------------------- */
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
+
