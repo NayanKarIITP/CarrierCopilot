@@ -772,7 +772,7 @@ if current_dir not in sys.path:
     sys.path.append(current_dir)
 
 try:
-    from llm_engine import parse_with_llm
+    from python.llm_engine import parse_with_llm
 except ImportError:
     print("⚠️ Warning: llm_engine not found. Using mock mode.")
     def parse_with_llm(prompt, model_name=None): return "{}"

@@ -85,6 +85,8 @@
 
 
 #llm_engine.py
+print("✅ llm_engine loaded successfully")
+
 import os
 import re
 import json
