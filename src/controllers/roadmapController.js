@@ -211,19 +211,14 @@ async function generateRoadmap(req, res) {
     let { skills, role } = req.body;
     const userId = req.user ? req.user._id : null;
 
-    // 1. Fetch History if skills are missing
+    // 1. Fetch History if skills missing
     if ((!skills || !Array.isArray(skills) || skills.length === 0) && userId) {
-      console.log(`[Roadmap] Fetching historical skills for user: ${userId}`);
-      const currentUser = await User.findById(userId).select("skills"); 
-      
-      if (currentUser && currentUser.skills && currentUser.skills.length > 0) {
-        skills = currentUser.skills;
-      } else {
-        skills = ["HTML", "CSS", "JavaScript"]; // Default fallback
-      }
+      const currentUser = await User.findById(userId).select("skills");
+      skills = currentUser?.skills?.length
+        ? currentUser.skills
+        : ["HTML", "CSS", "JavaScript"];
     }
 
-    // 2. Validate Inputs
     if (!skills || !Array.isArray(skills)) {
       return res.status(400).json({ success: false, message: "No skills found." });
     }
@@ -231,57 +226,63 @@ async function generateRoadmap(req, res) {
       return res.status(400).json({ success: false, message: "Target role is required." });
     }
 
-    console.log(`[Roadmap] Generating for Role: ${role} | Skills: ${skills.length}`);
+    console.log(`[Roadmap] Generating for ${role}`);
 
-    // 3. Call Python Microservice
-    // Python returns: { level: "Intermediate", roadmap: [...] }
+    // 2. Call Python
     const aiResult = await pythonService.generateRoadmap(skills, role);
 
-    if (!aiResult) {
-      throw new Error("AI Service failed to return data");
-    }
+    // 🛡️ CRITICAL FIX: FALLBACK INSTEAD OF THROW
+    let stepsData;
+    let levelData = "Beginner";
 
-    // Handle structure (whether Python returns object or just array)
-    const stepsData = aiResult.roadmap || aiResult;
-    const levelData = aiResult.level || "Beginner"; 
+    if (!aiResult) {
+      console.warn("⚠️ Python roadmap failed, using fallback");
+
+      stepsData = [
+        { step: "Strengthen core fundamentals" },
+        { step: "Build 2–3 real-world projects" },
+        { step: "Learn DSA and problem solving" },
+        { step: "Prepare interview questions" },
+        { step: "Apply consistently" },
+      ];
+    } else {
+      stepsData = aiResult.roadmap || aiResult;
+      levelData = aiResult.level || "Intermediate";
+    }
 
     let savedRoadmap = null;
 
-    // 4. Save to DB (Persistent History)
+    // 3. Save roadmap
     if (userId) {
       savedRoadmap = await Roadmap.create({
-        userId: userId,
+        userId,
         targetRole: role,
         steps: stepsData,
         currentSkills: skills,
-        level: levelData // ✅ Save the Level!
+        level: levelData,
       });
 
-      // Update User Profile
       await User.findByIdAndUpdate(userId, {
-        $set: { 
-          roadmapGenerated: true,
-          currentRoadmapId: savedRoadmap._id 
-        }
+        roadmapGenerated: true,
+        currentRoadmapId: savedRoadmap._id,
       });
     }
 
-    // 5. Send Response
     return res.json({
       success: true,
       data: {
         roadmap: stepsData,
-        level: levelData, // ✅ Send level to Frontend
+        level: levelData,
         savedId: savedRoadmap ? savedRoadmap._id : null,
+        fallback: !aiResult, // 👈 frontend can show badge if needed
       },
     });
 
   } catch (err) {
-    console.error("Roadmap Generation Error:", err);
+    console.error("Roadmap Generation Error:", err.message);
     return res.status(500).json({
       success: false,
-      message: "Server error while generating roadmap",
-      details: err.message,
+      message: "Roadmap generation failed",
     });
   }
 }

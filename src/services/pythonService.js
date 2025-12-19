@@ -461,234 +461,42 @@
 
 
 
-const axios = require("axios");
-const path = require("path");
-const { spawn } = require("child_process");
-const fs = require("fs");
-
-// ⚡ FAST API URL (Must match your running Python server port)
-// This connects Node.js to the running Python 'app.py' for instant responses.
-const PYTHON_API_URL = "http://127.0.0.1:8000";
-
-// 🐢 SCRIPT PATH (For Resume & Roadmap tasks)
-// ✅ FIX: Use the specific path you confirmed earlier, or "python" as fallback
-const PYTHON_EXECUTABLE = "C:\\Users\\nkar9\\OneDrive\\Desktop\\Career-Copilot-Backend\\venv\\Scripts\\python.exe";
-
-// ---------------------------------------------------------
-// 🛠️ HELPER: Run Script Safe (Prevents Node Crashes)
-// ---------------------------------------------------------
-const runPythonScript = (scriptName, inputData = null, args = []) => {
-  return new Promise((resolve, reject) => {
-    try {
-      const scriptPath = path.join(__dirname, `../python/${scriptName}`);
-      
-      // 1. Verify Script Exists
-      if (!fs.existsSync(scriptPath)) {
-          console.error(`❌ Script missing: ${scriptPath}`);
-          return resolve(null); 
-      }
-
-      console.log(`🐢 Spawning Script: ${scriptName}`);
-      
-      const pythonProcess = spawn(PYTHON_EXECUTABLE, [scriptPath, ...args], {
-        env: { ...process.env } // Pass API Keys to Python
-      });
-
-      // 🛡️ CRASH PROTECTION: Catches "Python not found" errors
-      pythonProcess.on('error', (err) => {
-        console.error("❌ Failed to spawn Python (Check PYTHON_EXECUTABLE path):", err.message);
-        resolve(null); // Return null instead of crashing the server
-      });
-
-      if (inputData) {
-        pythonProcess.stdin.write(JSON.stringify(inputData));
-        pythonProcess.stdin.end();
-      }
-
-      let dataString = "";
-      
-      // Capture Standard Output (JSON)
-      pythonProcess.stdout.on("data", (data) => dataString += data.toString());
-      
-      // Capture Error Output (Logs)
-      pythonProcess.stderr.on("data", (data) => console.error(`[Python Log]: ${data}`));
-
-      pythonProcess.on("close", (code) => {
-        if (code !== 0) {
-          console.error(`❌ ${scriptName} exited with code ${code}`);
-          return resolve(null);
-        }
-        try {
-          resolve(JSON.parse(dataString));
-        } catch (err) {
-          console.error(`❌ JSON Parse Error in ${scriptName}`);
-          resolve(null);
-        }
-      });
-    } catch (err) {
-      console.error("Spawn Error:", err);
-      resolve(null);
-    }
-  });
-};
-
-module.exports = {
-  // ==================================================
-  // 🟢 REAL-TIME INTERVIEW (Uses HTTP API)
-  // ==================================================
-
-  /**
-   * 1. Smart Question Fetcher
-   * Automatically switches between START and NEXT based on sessionId.
-   */
-  async getInterviewQuestion(role, level, sessionId = null) {
-    try {
-      // Logic: If no ID, Start New. If ID exists, Get Next.
-      let endpoint = "/interview/start";
-      let payload = { role: role || "Software Engineer", level: level || "Mid-Level" };
-
-      if (sessionId) {
-        endpoint = "/interview/next-question";
-        payload.sessionId = sessionId;
-      }
-
-      console.log(`🚀 Calling Python API: ${endpoint} (Session: ${sessionId || "New"})`);
-
-
-      // Sending request to Python FastAPI (Port 8000)
-      const res = await axios.post(`${PYTHON_API_URL}${endpoint}`, payload);
-      
-      if (res.data && res.data.question) {
-        return res.data.question;
-      }
-      
-      throw new Error("Python backend returned empty question data");
-
-    } catch (err) {
-      // 🛡️ Error Handling
-      if (err.code === 'ECONNREFUSED') {
-          console.error("🔥 Connection Refused: Is 'python app.py' running on port 8000?");
-      } else {
-          console.error("🔥 Python API Error:", err.message);
-      }
-      return null; // Controller will handle this by showing a fallback question
-    }
-  },
-
-  /**
-   * 2. Analyze Answer
-   */
-  async analyzeInterview(transcript) {
-    try {
-      const res = await axios.post(`${PYTHON_API_URL}/interview/analyze`, { 
-        transcript: transcript 
-      });
-      return res.data.data.analysis;
-    } catch (err) {
-      console.error("⚠️ Analyze Failed:", err.message);
-      return { 
-        strengths: ["Analysis unavailable"], 
-        improvements: ["Check backend connection"], 
-        clarity_score: 0 
-      };
-    }
-  },
-
-  /**
-   * 3. Video Frame Metrics
-   */
-  async getFrameMetrics(imageBase64) {
-    try {
-      const res = await axios.post(`${PYTHON_API_URL}/interview/frame-metrics`, { 
-        image_base64: imageBase64 
-      });
-      return res.data.metrics;
-    } catch (err) {
-      // Silent fail to avoid log spamming 30x per second
-      return { emotion: "Neutral", confidence: 0 };
-    }
-  },
-
-  // ==================================================
-  // 🟡 OFFLINE TASKS (Uses Spawn/Scripts)
-  // ==================================================
-  
-  async processResume(file) {
-    let filePath = file.path || file;
-    // Fix for direct string paths or multer objects
-    if (!fs.existsSync(filePath) && file.path) filePath = file.path;
-    
-    // Resume parsing loads heavy NLP libs, so we spawn it as a separate process
-    return runPythonScript("resume_parser.py", null, [filePath]); 
-  },
-
-  // 🔹 ADDED: Text-based Resume Analysis (Used by resumeRoutes.js)
-  async analyzeResume(text, targetRole) {
-    const fs = require('fs');
-    const os = require('os');
-    const tempFilePath = path.join(os.tmpdir(), `resume_${Date.now()}.txt`);
-    try {
-        fs.writeFileSync(tempFilePath, text);
-        const result = await runPythonScript("resume_parser.py", null, [tempFilePath]);
-        fs.unlinkSync(tempFilePath); // Cleanup
-        return result;
-    } catch (err) {
-        console.error("Text Analysis Error:", err);
-        return { success: false, message: "Analysis failed" };
-    }
-  },
-
-  async generateRoadmap(skills, role) {
-    return runPythonScript("roadmap_generator.py", { skills, role });
-  },
-
-  async skillGapAnalyzer(resumeSkills, targetRole) {
-    return runPythonScript("skill_gap_analyzer.py", { current_skills: resumeSkills, target_role: targetRole });
-  },
-
-  async getMarketTrends() {
-    return runPythonScript("market_trends.py", {});
-  }
-};
-
-
-
-
-
-
-// // src/services/pythonService.js(last correct one)
 // const axios = require("axios");
 // const path = require("path");
 // const { spawn } = require("child_process");
 // const fs = require("fs");
 
-// // ⚡ FAST API (For Interviews & Video)
-// const PYTHON_API_URL = process.env.PYTHON_API_URL || "http://127.0.0.1:8000";
+// // ⚡ FAST API URL (Must match your running Python server port)
+// // This connects Node.js to the running Python 'app.py' for instant responses.
+// const PYTHON_API_URL = "http://127.0.0.1:8000";
 
-// // 🐢 SCRIPT PATH (For Resume & Roadmap)
-// // ⚠️ CHECK THIS PATH: Verify this file exists on your computer
-// const PYTHON_EXECUTABLE = process.env.PYTHON_PATH || "C:\\Users\\nkar9\\OneDrive\\Desktop\\Career-Copilot-Backend\\venv\\Scripts\\python.exe";
+// // 🐢 SCRIPT PATH (For Resume & Roadmap tasks)
+// // ✅ FIX: Use the specific path you confirmed earlier, or "python" as fallback
+// const PYTHON_EXECUTABLE = "C:\\Users\\nkar9\\OneDrive\\Desktop\\Career-Copilot-Backend\\venv\\Scripts\\python.exe";
 
-// // Helper: Run Script (Safe Version)
+// // ---------------------------------------------------------
+// // 🛠️ HELPER: Run Script Safe (Prevents Node Crashes)
+// // ---------------------------------------------------------
 // const runPythonScript = (scriptName, inputData = null, args = []) => {
 //   return new Promise((resolve, reject) => {
 //     try {
 //       const scriptPath = path.join(__dirname, `../python/${scriptName}`);
       
+//       // 1. Verify Script Exists
 //       if (!fs.existsSync(scriptPath)) {
 //           console.error(`❌ Script missing: ${scriptPath}`);
-//           return resolve(null);
+//           return resolve(null); 
 //       }
 
 //       console.log(`🐢 Spawning Script: ${scriptName}`);
       
 //       const pythonProcess = spawn(PYTHON_EXECUTABLE, [scriptPath, ...args], {
-//         env: { ...process.env }
+//         env: { ...process.env } // Pass API Keys to Python
 //       });
 
-//       // 🛡️ CRASH PROTECTION: This is what fixes "Failed to fetch"
+//       // 🛡️ CRASH PROTECTION: Catches "Python not found" errors
 //       pythonProcess.on('error', (err) => {
-//         console.error("❌ Failed to start Python process:", err.message);
+//         console.error("❌ Failed to spawn Python (Check PYTHON_EXECUTABLE path):", err.message);
 //         resolve(null); // Return null instead of crashing the server
 //       });
 
@@ -698,20 +506,22 @@ module.exports = {
 //       }
 
 //       let dataString = "";
-//       let errorString = "";
-
+      
+//       // Capture Standard Output (JSON)
 //       pythonProcess.stdout.on("data", (data) => dataString += data.toString());
-//       pythonProcess.stderr.on("data", (data) => errorString += data.toString());
+      
+//       // Capture Error Output (Logs)
+//       pythonProcess.stderr.on("data", (data) => console.error(`[Python Log]: ${data}`));
 
 //       pythonProcess.on("close", (code) => {
 //         if (code !== 0) {
-//           console.error(`❌ ${scriptName} Failed: ${errorString}`);
+//           console.error(`❌ ${scriptName} exited with code ${code}`);
 //           return resolve(null);
 //         }
 //         try {
 //           resolve(JSON.parse(dataString));
 //         } catch (err) {
-//           console.error(`❌ JSON Parse Error (${scriptName})`);
+//           console.error(`❌ JSON Parse Error in ${scriptName}`);
 //           resolve(null);
 //         }
 //       });
@@ -723,27 +533,51 @@ module.exports = {
 // };
 
 // module.exports = {
-//   // 🟢 1. INTERVIEW (Try API first, then Script)
-//   async getInterviewQuestion(role, level) {
+//   // ==================================================
+//   // 🟢 REAL-TIME INTERVIEW (Uses HTTP API)
+//   // ==================================================
+
+//   /**
+//    * 1. Smart Question Fetcher
+//    * Automatically switches between START and NEXT based on sessionId.
+//    */
+//   async getInterviewQuestion(role, level, sessionId = null) {
 //     try {
-//       // 1. Try Fast API
-//       const res = await axios.post(`${PYTHON_API_URL}/interview/start`, { 
-//         role: role || "Software Engineer", 
-//         level: level || "Mid-Level" 
-//       });
+//       // Logic: If no ID, Start New. If ID exists, Get Next.
+//       let endpoint = "/interview/start";
+//       let payload = { role: role || "Software Engineer", level: level || "Mid-Level" };
+
+//       if (sessionId) {
+//         endpoint = "/interview/next-question";
+//         payload.sessionId = sessionId;
+//       }
+
+//       console.log(`🚀 Calling Python API: ${endpoint} (Session: ${sessionId || "New"})`);
+
+
+//       // Sending request to Python FastAPI (Port 8000)
+//       const res = await axios.post(`${PYTHON_API_URL}${endpoint}`, payload);
       
 //       if (res.data && res.data.question) {
 //         return res.data.question;
 //       }
-//       throw new Error("No question in API response");
+      
+//       throw new Error("Python backend returned empty question data");
 
 //     } catch (err) {
-//       console.warn("⚠️ Python API Failed, switching to script fallback...");
-//       // 2. Fallback to Script
-//       return runPythonScript("interview_assistant.py", { action: "question", role, level });
+//       // 🛡️ Error Handling
+//       if (err.code === 'ECONNREFUSED') {
+//           console.error("🔥 Connection Refused: Is 'python app.py' running on port 8000?");
+//       } else {
+//           console.error("🔥 Python API Error:", err.message);
+//       }
+//       return null; // Controller will handle this by showing a fallback question
 //     }
 //   },
 
+//   /**
+//    * 2. Analyze Answer
+//    */
 //   async analyzeInterview(transcript) {
 //     try {
 //       const res = await axios.post(`${PYTHON_API_URL}/interview/analyze`, { 
@@ -751,10 +585,18 @@ module.exports = {
 //       });
 //       return res.data.data.analysis;
 //     } catch (err) {
-//       return runPythonScript("interview_assistant.py", { action: "analyze", transcript });
+//       console.error("⚠️ Analyze Failed:", err.message);
+//       return { 
+//         strengths: ["Analysis unavailable"], 
+//         improvements: ["Check backend connection"], 
+//         clarity_score: 0 
+//       };
 //     }
 //   },
 
+//   /**
+//    * 3. Video Frame Metrics
+//    */
 //   async getFrameMetrics(imageBase64) {
 //     try {
 //       const res = await axios.post(`${PYTHON_API_URL}/interview/frame-metrics`, { 
@@ -762,15 +604,38 @@ module.exports = {
 //       });
 //       return res.data.metrics;
 //     } catch (err) {
+//       // Silent fail to avoid log spamming 30x per second
 //       return { emotion: "Neutral", confidence: 0 };
 //     }
 //   },
 
-//   // 🟡 2. OFFLINE TASKS (Always Script)
+//   // ==================================================
+//   // 🟡 OFFLINE TASKS (Uses Spawn/Scripts)
+//   // ==================================================
+  
 //   async processResume(file) {
 //     let filePath = file.path || file;
+//     // Fix for direct string paths or multer objects
 //     if (!fs.existsSync(filePath) && file.path) filePath = file.path;
+    
+//     // Resume parsing loads heavy NLP libs, so we spawn it as a separate process
 //     return runPythonScript("resume_parser.py", null, [filePath]); 
+//   },
+
+//   // 🔹 ADDED: Text-based Resume Analysis (Used by resumeRoutes.js)
+//   async analyzeResume(text, targetRole) {
+//     const fs = require('fs');
+//     const os = require('os');
+//     const tempFilePath = path.join(os.tmpdir(), `resume_${Date.now()}.txt`);
+//     try {
+//         fs.writeFileSync(tempFilePath, text);
+//         const result = await runPythonScript("resume_parser.py", null, [tempFilePath]);
+//         fs.unlinkSync(tempFilePath); // Cleanup
+//         return result;
+//     } catch (err) {
+//         console.error("Text Analysis Error:", err);
+//         return { success: false, message: "Analysis failed" };
+//     }
 //   },
 
 //   async generateRoadmap(skills, role) {
@@ -790,121 +655,153 @@ module.exports = {
 
 
 
+const axios = require("axios");
+const path = require("path");
+const { spawn } = require("child_process");
+const fs = require("fs");
+const os = require("os");
 
+/* ---------------------------------------------------
+   PYTHON CONFIG (CROSS-PLATFORM)
+--------------------------------------------------- */
 
+// Render / Linux uses `python3`, Windows uses `python`
+const PYTHON_EXECUTABLE =
+  process.platform === "win32" ? "python" : "python3";
 
-// const axios = require("axios");
-// const path = require("path");
-// const { spawn } = require("child_process");
-// const fs = require("fs");
+// Python FastAPI (Interview Engine)
+const PYTHON_API_URL =
+  process.env.PYTHON_API_URL || "http://127.0.0.1:8000";
 
-// // ⚡ FAST API URL
-// const PYTHON_API_URL = "http://127.0.0.1:8000";
+/* ---------------------------------------------------
+   SAFE PYTHON RUNNER
+--------------------------------------------------- */
 
-// // 🐢 SCRIPT PATH - Use "python" if you are not sure of the full path
-// const PYTHON_EXECUTABLE = process.env.PYTHON_PATH || "python";
+const runPythonScript = (scriptName, inputData = null, args = []) => {
+  return new Promise((resolve) => {
+    const scriptPath = path.join(__dirname, `../python/${scriptName}`);
 
-// // Helper: Run Script (Safe Version)
-// const runPythonScript = (scriptName, inputData = null, args = []) => {
-//   return new Promise((resolve, reject) => {
-//     try {
-//       const scriptPath = path.join(__dirname, `../python/${scriptName}`);
-      
-//       // 🛡️ Check if file exists
-//       if (!fs.existsSync(scriptPath)) {
-//           console.error(`❌ Script missing: ${scriptPath}`);
-//           return resolve(null); 
-//       }
+    if (!fs.existsSync(scriptPath)) {
+      console.error(`❌ Python script not found: ${scriptPath}`);
+      return resolve({ success: false, error: "Script missing" });
+    }
 
-//       console.log(`🐢 Spawning Script: ${scriptName}`);
-      
-//       const pythonProcess = spawn(PYTHON_EXECUTABLE, [scriptPath, ...args], {
-//         env: { ...process.env }
-//       });
+    const py = spawn(PYTHON_EXECUTABLE, [scriptPath, ...args], {
+      env: process.env,
+    });
 
-//       // 🛡️ CRASH PROTECTION: This prevents "Failed to fetch" errors
-//       pythonProcess.on('error', (err) => {
-//         console.error("❌ Failed to spawn Python (Check your PYTHON_PATH):", err.message);
-//         resolve(null); // Return null so Node stays alive
-//       });
+    let stdout = "";
+    let stderr = "";
 
-//       if (inputData) {
-//         pythonProcess.stdin.write(JSON.stringify(inputData));
-//         pythonProcess.stdin.end();
-//       }
+    if (inputData) {
+      py.stdin.write(JSON.stringify(inputData));
+      py.stdin.end();
+    }
 
-//       let dataString = "";
-      
-//       pythonProcess.stdout.on("data", (data) => dataString += data.toString());
-//       pythonProcess.stderr.on("data", (data) => console.error(`[Python Log]: ${data}`));
+    py.stdout.on("data", (data) => (stdout += data.toString()));
+    py.stderr.on("data", (data) => (stderr += data.toString()));
 
-//       pythonProcess.on("close", (code) => {
-//         if (code !== 0) {
-//           console.error(`❌ Script exited with code ${code}`);
-//           return resolve(null);
-//         }
-//         try {
-//           resolve(JSON.parse(dataString));
-//         } catch (err) {
-//           resolve(null);
-//         }
-//       });
-//     } catch (err) {
-//       console.error("Spawn Error:", err);
-//       resolve(null);
-//     }
-//   });
-// };
+    py.on("close", (code) => {
+      if (code !== 0) {
+        console.error(`❌ Python error (${scriptName}):`, stderr);
+        return resolve({ success: false, error: stderr });
+      }
 
-// module.exports = {
-//   // 🟢 1. INTERVIEW (Try API first, then Script)
-//   async getInterviewQuestion(role, level) {
-//     try {
-//       // 1. Try Fast API
-//       const res = await axios.post(`${PYTHON_API_URL}/interview/next-question`, { 
-//         sessionId: "demo-session", // Temporary ID for stability
-//         role: role || "Software Engineer", 
-//         level: level || "Mid-Level" 
-//       });
-      
-//       if (res.data && res.data.question) {
-//         return res.data.question;
-//       }
-//       throw new Error("No question in API response");
+      try {
+        const parsed = JSON.parse(stdout);
+        resolve(parsed);
+      } catch (err) {
+        console.error("❌ Invalid JSON from Python:", stdout);
+        resolve({ success: false, error: "Invalid JSON" });
+      }
+    });
 
-//     } catch (err) {
-//       console.warn("⚠️ Python API Failed (Question), using fallback...");
-//       // 2. Fallback to Script
-//       return runPythonScript("interview_assistant.py", { action: "question", role, level });
-//     }
-//   },
+    py.on("error", (err) => {
+      console.error("❌ Python spawn failed:", err.message);
+      resolve({ success: false, error: err.message });
+    });
+  });
+};
 
-//   async analyzeInterview(transcript) {
-//     try {
-//       const res = await axios.post(`${PYTHON_API_URL}/interview/analyze`, { 
-//         transcript: transcript 
-//       });
-//       return res.data.data.analysis;
-//     } catch (err) {
-//       console.warn("⚠️ Python API Failed (Analyze), using fallback...");
-//       return runPythonScript("interview_assistant.py", { action: "analyze", transcript });
-//     }
-//   },
+/* ---------------------------------------------------
+   EXPORT SERVICES
+--------------------------------------------------- */
 
-//   async getFrameMetrics(imageBase64) {
-//     try {
-//       const res = await axios.post(`${PYTHON_API_URL}/interview/frame-metrics`, { 
-//         image_base64: imageBase64 
-//       });
-//       return res.data.metrics;
-//     } catch (err) {
-//       return { emotion: "Neutral", confidence: 0 };
-//     }
-//   },
+module.exports = {
+  /* ---------- INTERVIEW (FASTAPI) ---------- */
 
-//   // 🟡 2. Offline Tasks
-//   async processResume(file) { return runPythonScript("resume_parser.py", null, [file.path]); },
-//   async generateRoadmap(skills, role) { return runPythonScript("roadmap_generator.py", { skills, role }); },
-//   async skillGapAnalyzer(resumeSkills, targetRole) { return runPythonScript("skill_gap_analyzer.py", { current_skills: resumeSkills, target_role: targetRole }); },
-//   async getMarketTrends() { return runPythonScript("market_trends.py", {}); }
-// };
+  async getInterviewQuestion(role, level, sessionId = null) {
+    try {
+      const endpoint = sessionId
+        ? "/interview/next-question"
+        : "/interview/start";
+
+      const payload = sessionId
+        ? { sessionId, role, level }
+        : { role, level };
+
+      const res = await axios.post(`${PYTHON_API_URL}${endpoint}`, payload);
+      return res.data?.question || null;
+    } catch (err) {
+      console.error("Interview API error:", err.message);
+      return null;
+    }
+  },
+
+  async analyzeInterview(transcript) {
+    try {
+      const res = await axios.post(
+        `${PYTHON_API_URL}/interview/analyze`,
+        { transcript }
+      );
+      return res.data?.data?.analysis || null;
+    } catch {
+      return {
+        strengths: [],
+        improvements: ["Analysis unavailable"],
+        clarity_score: 0,
+      };
+    }
+  },
+
+  async getFrameMetrics(imageBase64) {
+    try {
+      const res = await axios.post(
+        `${PYTHON_API_URL}/interview/frame-metrics`,
+        { image_base64: imageBase64 }
+      );
+      return res.data?.metrics || {};
+    } catch {
+      return {};
+    }
+  },
+
+  /* ---------- OFFLINE AI (SPAWN) ---------- */
+
+  async processResume(filePath) {
+    return runPythonScript("resume_parser.py", null, [filePath]);
+  },
+
+  async analyzeResume(text) {
+    const tempFile = path.join(os.tmpdir(), `resume_${Date.now()}.txt`);
+    fs.writeFileSync(tempFile, text);
+    const result = await runPythonScript("resume_parser.py", null, [tempFile]);
+    fs.unlinkSync(tempFile);
+    return result;
+  },
+
+  async generateRoadmap(skills, role) {
+    return runPythonScript("roadmap_generator.py", { skills, role });
+  },
+
+  async skillGapAnalyzer(resumeSkills, targetRole) {
+    return runPythonScript("skill_gap_analyzer.py", {
+      current_skills: resumeSkills,
+      target_role: targetRole,
+    });
+  },
+
+  async getMarketTrends() {
+    return runPythonScript("market_trends.py", {});
+  },
+};
