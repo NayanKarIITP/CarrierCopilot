@@ -1101,10 +1101,15 @@ import re
 import json
 import sys
 from typing import Dict, Any
-from dotenv import load_dotenv 
+# from dotenv import load_dotenv 
 
-load_dotenv()
+# load_dotenv()
 # Ensure we can import local utils
+# sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# Render injects env vars automatically
+API_KEY = os.getenv("GEMINI_API_KEY")
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # ---------------------------------------------------------
