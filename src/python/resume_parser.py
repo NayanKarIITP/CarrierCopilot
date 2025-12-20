@@ -1095,12 +1095,20 @@
 
 
 
-#resume_parser.py
+
+
+# resume_parser.py
 import os
 import re
 import json
 import sys
 from typing import Dict, Any
+from dotenv import load_dotenv   # ✅ ADD THIS
+
+# ---------------------------------------------------------
+# LOAD ENV (CRITICAL FIX)
+# ---------------------------------------------------------
+load_dotenv()  # ✅ THIS WAS MISSING
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -1126,8 +1134,13 @@ except ImportError as e:
     log_debug(f"Import error: {e}")
     AI_LIB_AVAILABLE = False
 
+# ---------------------------------------------------------
+# CONFIG
+# ---------------------------------------------------------
 API_KEY = os.getenv("GEMINI_API_KEY")
 MODEL_NAME = "gemini-flash-latest"
+
+log_debug(f"GEMINI_API_KEY present: {bool(API_KEY)}")  # ✅ DEBUG LINE
 
 AI_AVAILABLE = False
 if AI_LIB_AVAILABLE and API_KEY:
@@ -1179,7 +1192,7 @@ def call_gemini(prompt: str) -> str | None:
         return None
 
 # ---------------------------------------------------------
-# FALLBACK PARSER (ALWAYS WORKS)
+# FALLBACKS
 # ---------------------------------------------------------
 def fallback_parse(text: str) -> dict:
     text_lower = text.lower()
@@ -1201,13 +1214,12 @@ def fallback_analysis(parsed: dict) -> dict:
     }
 
 # ---------------------------------------------------------
-# CORE PIPELINE (NEVER FAILS)
+# CORE PIPELINE
 # ---------------------------------------------------------
 def process_resume(text: str) -> Dict[str, Any]:
     parsed = None
     analysis = None
 
-    # Attempt Gemini extraction
     gemini_json = call_gemini(EXTRACTION_PROMPT + text[:8000])
     if gemini_json:
         try:
@@ -1218,7 +1230,6 @@ def process_resume(text: str) -> Dict[str, Any]:
     if not parsed:
         parsed = fallback_parse(text)
 
-    # Attempt Gemini analysis
     gemini_analysis = call_gemini(ANALYZE_PROMPT + json.dumps(parsed))
     if gemini_analysis:
         try:
