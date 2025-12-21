@@ -1096,24 +1096,24 @@
 
 
 
+# src/python/resume_parser.py
 
-# resume_parser.py
 import os
 import re
 import json
 import sys
 from typing import Dict, Any
-from dotenv import load_dotenv   # ✅ ADD THIS
+from dotenv import load_dotenv
 
 # ---------------------------------------------------------
-# LOAD ENV (CRITICAL FIX)
+# LOAD ENV (SAFE FOR LOCAL + PROD)
 # ---------------------------------------------------------
-load_dotenv()  # ✅ THIS WAS MISSING
+load_dotenv()  # harmless in prod, useful locally
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # ---------------------------------------------------------
-# LOGGING (stderr only)
+# LOGGING (stderr ONLY)
 # ---------------------------------------------------------
 def log_debug(message: str):
     try:
@@ -1140,7 +1140,7 @@ except ImportError as e:
 API_KEY = os.getenv("GEMINI_API_KEY")
 MODEL_NAME = "gemini-flash-latest"
 
-log_debug(f"GEMINI_API_KEY present: {bool(API_KEY)}")  # ✅ DEBUG LINE
+log_debug(f"GEMINI_API_KEY present: {bool(API_KEY)}")
 
 AI_AVAILABLE = False
 if AI_LIB_AVAILABLE and API_KEY:
@@ -1186,7 +1186,9 @@ def call_gemini(prompt: str) -> str | None:
     try:
         model = genai.GenerativeModel(MODEL_NAME)
         response = model.generate_content(prompt)
-        return response.text.replace("```json", "").replace("```", "").strip()
+        text = response.text or ""
+        text = text.replace("```json", "").replace("```", "").strip()
+        return text
     except Exception as e:
         log_debug(f"Gemini error: {e}")
         return None
@@ -1205,36 +1207,38 @@ def fallback_parse(text: str) -> dict:
     }
 
 def fallback_analysis(parsed: dict) -> dict:
-    score = 30 + (20 if parsed["skills"] else 0)
+    score = 30 + (20 if parsed.get("skills") else 0)
     return {
         "resume_score": min(score, 70),
         "feedback": ["Improve resume formatting", "Add more projects"],
-        "strengths": parsed["skills"],
+        "strengths": parsed.get("skills", []),
         "weaknesses": []
     }
 
 # ---------------------------------------------------------
 # CORE PIPELINE
 # ---------------------------------------------------------
-def process_resume(text: str) -> Dict[str, Any]:
+def process_resume_text(text: str) -> Dict[str, Any]:
     parsed = None
     analysis = None
 
+    # ---- PARSE ----
     gemini_json = call_gemini(EXTRACTION_PROMPT + text[:8000])
     if gemini_json:
         try:
             parsed = json.loads(gemini_json)
-        except:
+        except Exception:
             parsed = None
 
     if not parsed:
         parsed = fallback_parse(text)
 
+    # ---- ANALYZE ----
     gemini_analysis = call_gemini(ANALYZE_PROMPT + json.dumps(parsed))
     if gemini_analysis:
         try:
             analysis = json.loads(gemini_analysis)
-        except:
+        except Exception:
             analysis = None
 
     if not analysis:
@@ -1248,15 +1252,15 @@ def process_resume(text: str) -> Dict[str, Any]:
     }
 
 # ---------------------------------------------------------
-# PUBLIC API
+# PUBLIC ENTRY (FILE)
 # ---------------------------------------------------------
-def parse_resume_from_file(path: str) -> Dict[str, Any]:
+def parse_resume_from_file(file_path: str) -> Dict[str, Any]:
     try:
-        text = read_pdf_text(path)
+        text = read_pdf_text(file_path)
         text = clean_text(text)
-        return process_resume(text)
+        return process_resume_text(text)
     except Exception as e:
-        log_debug(f"Read error: {e}")
+        log_debug(f"Resume read error: {e}")
         return {
             "success": True,
             "parsed": fallback_parse(""),
@@ -1265,8 +1269,23 @@ def parse_resume_from_file(path: str) -> Dict[str, Any]:
         }
 
 # ---------------------------------------------------------
-# CLI
+# CLI ENTRYPOINT (NODE SPAWN)
 # ---------------------------------------------------------
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        print(json.dumps(parse_resume_from_file(sys.argv[1])))
+    try:
+        if len(sys.argv) < 2:
+            print(json.dumps({"success": False, "error": "No file path provided"}))
+            sys.exit(0)
+
+        file_path = sys.argv[1]
+        result = parse_resume_from_file(file_path)
+
+        # STRICT JSON OUTPUT
+        print(json.dumps(result))
+
+    except Exception as e:
+        print(json.dumps({
+            "success": False,
+            "error": str(e),
+            "mode": "fallback"
+        }))

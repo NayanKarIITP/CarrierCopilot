@@ -987,7 +987,6 @@
 
 // src/services/pythonService.js
 
-const axios = require("axios");
 const { spawn } = require("child_process");
 const path = require("path");
 const fs = require("fs");
@@ -1001,15 +1000,11 @@ const os = require("os");
 const PYTHON_EXECUTABLE =
   process.platform === "win32" ? "python" : "python3";
 
-// FastAPI base URL (Interview only)
-const PYTHON_API_URL =
-  process.env.PYTHON_API_URL || "http://127.0.0.1:8000";
-
 // Python scripts directory
 const PYTHON_DIR = path.join(__dirname, "../python");
 
 /* ---------------------------------------------------
-   SAFE PYTHON RUNNER
+   SAFE PYTHON RUNNER (SPAWN)
 --------------------------------------------------- */
 
 function runPythonScript(scriptName, args = []) {
@@ -1032,7 +1027,7 @@ function runPythonScript(scriptName, args = []) {
     py.stderr.on("data", (data) => (stderr += data.toString()));
 
     py.on("close", () => {
-      if (stderr) console.warn("[PYTHON]", stderr);
+      if (stderr) console.warn("[PYTHON STDERR]", stderr);
 
       try {
         resolve(JSON.parse(stdout));
@@ -1055,7 +1050,7 @@ function runPythonScript(scriptName, args = []) {
 
 module.exports = {
   /* =====================================================
-     RESUME (SPAWN — NOT HTTP)
+     RESUME (SPAWN)
   ===================================================== */
 
   async processResume(filePath) {
@@ -1073,7 +1068,7 @@ module.exports = {
   },
 
   /* =====================================================
-     ROADMAP (SPAWN)
+     ROADMAP / MARKET (SPAWN)
   ===================================================== */
 
   async generateRoadmap(skills, role) {
@@ -1096,52 +1091,27 @@ module.exports = {
   },
 
   /* =====================================================
-     INTERVIEW (FASTAPI HTTP)
+     INTERVIEW (SPAWN — FIXED)
   ===================================================== */
 
   async getInterviewQuestion(role, level, sessionId = null) {
-    try {
-      const endpoint = sessionId
-        ? "/interview/next-question"
-        : "/interview/start";
-
-      const payload = sessionId
-        ? { sessionId, role, level }
-        : { role, level };
-
-      const res = await axios.post(`${PYTHON_API_URL}${endpoint}`, payload);
-      return res.data?.question || null;
-    } catch (err) {
-      console.error("Interview API error:", err.message);
-      return null;
-    }
+    return runPythonScript("interview_assistant.py", [
+      JSON.stringify({
+        action: "question",
+        role,
+        level,
+        sessionId,
+      }),
+    ]);
   },
 
-  async analyzeInterview(transcript) {
-    try {
-      const res = await axios.post(
-        `${PYTHON_API_URL}/interview/analyze`,
-        { transcript }
-      );
-      return res.data?.data?.analysis || null;
-    } catch {
-      return {
-        strengths: [],
-        improvements: ["Analysis unavailable"],
-        clarity_score: 0,
-      };
-    }
-  },
-
-  async getFrameMetrics(imageBase64) {
-    try {
-      const res = await axios.post(
-        `${PYTHON_API_URL}/interview/frame-metrics`,
-        { image_base64: imageBase64 }
-      );
-      return res.data?.metrics || {};
-    } catch {
-      return {};
-    }
+  async analyzeInterview(transcript, question = "") {
+    return runPythonScript("interview_assistant.py", [
+      JSON.stringify({
+        action: "analyze",
+        transcript,
+        question,
+      }),
+    ]);
   },
 };

@@ -384,7 +384,6 @@
 
 
 
-
 // src/controllers/resumeController.js
 
 const path = require("path");
@@ -398,6 +397,8 @@ const pythonService = require("../services/pythonService");
  * Upload & Process Resume (RENDER + PROD SAFE)
  */
 exports.uploadResume = async (req, res) => {
+  let tempPath = null;
+
   try {
     if (!req.file) {
       return res
@@ -405,43 +406,32 @@ exports.uploadResume = async (req, res) => {
         .json({ success: false, message: "No file uploaded" });
     }
 
-    const buffer = req.file.buffer; // ✅ MEMORY BUFFER
+    const buffer = req.file.buffer;
     const originalName = req.file.originalname;
-    const targetRole = req.body.targetRole || "fullstack-developer";
 
     // ---------------------------------------------------------
     // ✅ CREATE TEMP FILE (RENDER SAFE)
     // ---------------------------------------------------------
-    const tempPath = path.join(
-      os.tmpdir(),
-      `${Date.now()}-${originalName}`
-    );
-
+    tempPath = path.join(os.tmpdir(), `${Date.now()}-${originalName}`);
     fs.writeFileSync(tempPath, buffer);
 
     console.log("📤 Sending resume to Python service...");
 
-    // ---- CALL PYTHON ----
-    // const result = await pythonService.processResume(tempPath, targetRole);
-
+    // ---- CALL PYTHON (SPAWN BASED) ----
     const result = await pythonService.processResume(tempPath);
 
-    // Cleanup temp file immediately
-    fs.unlinkSync(tempPath);
-
-    if (!result || !result.success) {
+    if (!result || result.success === false) {
       return res.status(400).json({
         success: false,
-        message: "Python microservice failed",
+        message: "Python resume parsing failed",
       });
     }
 
     // ---------------------------------------------------------
-    // ✅ ROBUST DATA EXTRACTION
+    // ✅ NORMALIZE PYTHON RESPONSE
     // ---------------------------------------------------------
-    const rootData = result.parsedResume || result;
-    const parsedObj = rootData.parsed || {};
-    const analysisObj = rootData.analysis || {};
+    const parsedObj = result.parsed || {};
+    const analysisObj = result.analysis || {};
 
     const score =
       analysisObj.resume_score ||
@@ -449,9 +439,10 @@ exports.uploadResume = async (req, res) => {
       result.score ||
       0;
 
-    let feedback = [];
-    if (analysisObj.feedback?.length) feedback = analysisObj.feedback;
-    else if (parsedObj.feedback?.length) feedback = parsedObj.feedback;
+    const feedback =
+      analysisObj.feedback ||
+      parsedObj.feedback ||
+      [];
 
     let strengths = analysisObj.strengths || [];
     let weaknesses = analysisObj.weaknesses || [];
@@ -464,14 +455,12 @@ exports.uploadResume = async (req, res) => {
       weaknesses = feedback.slice(Math.ceil(feedback.length / 2));
     }
 
-    const skills = parsedObj.skills || [];
+    const skills = parsedObj.skills || ["General Technical Skills"];
     const education = parsedObj.education || [];
     const experience = parsedObj.experience || [];
 
-    if (!skills.length) skills.push("General Technical Skills");
-
     // ---------------------------------------------------------
-    // ✅ DELETE OLD RESUME
+    // ✅ DELETE OLD RESUME (ONE PER USER)
     // ---------------------------------------------------------
     const existingResume = await Resume.findOne({
       userId: req.user._id,
@@ -494,7 +483,7 @@ exports.uploadResume = async (req, res) => {
       feedback,
       strengths,
       weaknesses,
-      fileURL: null, // ❌ no disk file in prod
+      fileURL: null,
     });
 
     await User.findByIdAndUpdate(req.user._id, {
@@ -528,6 +517,17 @@ exports.uploadResume = async (req, res) => {
       message: "Server error",
       details: err.message,
     });
+  } finally {
+    // ---------------------------------------------------------
+    // ✅ GUARANTEED TEMP FILE CLEANUP
+    // ---------------------------------------------------------
+    try {
+      if (tempPath && fs.existsSync(tempPath)) {
+        fs.unlinkSync(tempPath);
+      }
+    } catch (cleanupErr) {
+      console.warn("⚠️ Temp file cleanup failed:", cleanupErr.message);
+    }
   }
 };
 

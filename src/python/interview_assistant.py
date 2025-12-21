@@ -387,20 +387,19 @@
 import json
 import re
 import random
+import sys
 
 # ---------------------------------------------------------
-# 🔧 SAFE IMPORT (WORKS WITH UVICORN + PACKAGES)
+# 🔧 SAFE IMPORT (WORKS LOCALLY + PRODUCTION)
 # ---------------------------------------------------------
 
 try:
-    # When loaded via: uvicorn src.python.app:app
     from src.python.llm_engine import parse_with_llm
 except ImportError:
     try:
-        # When loaded as a package module
         from .llm_engine import parse_with_llm
     except ImportError as e:
-        print(f"⚠️ Warning: llm_engine not found ({e}). Using mock mode.")
+        print(f"⚠️ Warning: llm_engine not found ({e}). Using mock mode.", file=sys.stderr)
 
         def parse_with_llm(prompt, model_name=None):
             return "{}"
@@ -478,7 +477,7 @@ def clean_json_output(text: str) -> str:
     end = text.rfind("}")
 
     if start != -1 and end != -1:
-        return text[start : end + 1]
+        return text[start:end + 1]
 
     return "{}"
 
@@ -520,7 +519,7 @@ def generate_question(role="Software Engineer", level="Mid-Level", history=None)
         }
 
     except Exception as e:
-        print(f"⚠️ AI Question Failed: {e}")
+        print(f"⚠️ AI Question Failed: {e}", file=sys.stderr)
         fallback = random.choice(FALLBACK_TEMPLATES)
 
         return {
@@ -564,7 +563,7 @@ def analyze_answer(transcript: str, question_context="General Interview"):
         return data
 
     except Exception as e:
-        print(f"⚠️ AI Analysis Failed: {e}")
+        print(f"⚠️ AI Analysis Failed: {e}", file=sys.stderr)
         return {
             "strengths": ["Clear communication"],
             "improvements": ["Add more examples"],
@@ -574,8 +573,37 @@ def analyze_answer(transcript: str, question_context="General Interview"):
         }
 
 # ---------------------------------------------------------
-# 🧪 LOCAL TEST
+# 🚀 CLI ENTRY POINT (NODE ↔ PYTHON CONTRACT)
 # ---------------------------------------------------------
 
 if __name__ == "__main__":
-    print(json.dumps(generate_question("DevOps Engineer", "Senior"), indent=2))
+    try:
+        if len(sys.argv) < 2:
+            print(json.dumps({"error": "No input provided"}))
+            sys.exit(0)
+
+        payload = json.loads(sys.argv[1])
+        action = payload.get("action")
+
+        if action == "question":
+            result = generate_question(
+                payload.get("role", "Software Engineer"),
+                payload.get("level", "Mid-Level"),
+            )
+            print(json.dumps(result))
+
+        elif action == "analyze":
+            result = analyze_answer(
+                payload.get("transcript", ""),
+                payload.get("question", ""),
+            )
+            print(json.dumps(result))
+
+        else:
+            print(json.dumps({"error": "Unknown action"}))
+
+    except Exception as e:
+        print(json.dumps({
+            "error": str(e),
+            "mode": "fallback"
+        }))
