@@ -39,35 +39,28 @@
 
 
 
-
-
 // src/middleware/uploadMiddleware.js
+
 const multer = require("multer");
-const path = require("path");
 
-// Allowed extensions
-const ALLOWED_EXTS = [".pdf", ".doc", ".docx", ".txt"];
-
-// ✅ MEMORY STORAGE (RENDER SAFE)
+/**
+ * ✅ MEMORY STORAGE (RENDER + SERVERLESS SAFE)
+ * - No disk writes
+ * - req.file.buffer available
+ */
 const storage = multer.memoryStorage();
-
-function fileFilter(req, file, cb) {
-  const ext = path.extname(file.originalname).toLowerCase();
-
-  if (!ALLOWED_EXTS.includes(ext)) {
-    return cb(
-      new Error("Invalid file type. Only PDF, DOC, DOCX, TXT allowed."),
-      false
-    );
-  }
-
-  cb(null, true);
-}
 
 const upload = multer({
   storage,
-  limits: { fileSize: 12 * 1024 * 1024 }, // 12MB
-  fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype !== "application/pdf") {
+      return cb(new Error("Only PDF files are allowed"), false);
+    }
+    cb(null, true);
+  },
 });
 
 module.exports = upload;
