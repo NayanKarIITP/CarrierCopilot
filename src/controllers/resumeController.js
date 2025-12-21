@@ -400,6 +400,8 @@ exports.uploadResume = async (req, res) => {
   let tempPath = null;
 
   try {
+    console.log("📄 FILE ===>", req.file);
+    console.log("📦 BODY ===>", req.body);
     if (!req.file) {
       return res
         .status(400)

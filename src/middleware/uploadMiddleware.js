@@ -38,29 +38,17 @@
 
 
 
-
 // src/middleware/uploadMiddleware.js
-
 const multer = require("multer");
 
-/**
- * ✅ MEMORY STORAGE (RENDER + SERVERLESS SAFE)
- * - No disk writes
- * - req.file.buffer available
- */
-const storage = multer.memoryStorage();
-
-const upload = multer({
-  storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
-  },
+module.exports = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (file.mimetype !== "application/pdf") {
-      return cb(new Error("Only PDF files are allowed"), false);
+      cb(new Error("Only PDF allowed"));
+    } else {
+      cb(null, true);
     }
-    cb(null, true);
   },
 });
-
-module.exports = upload;
