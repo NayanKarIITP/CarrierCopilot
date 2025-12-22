@@ -1,9 +1,26 @@
+# fastapi
+# uvicorn[standard]
+# opencv-python-headless
+# mediapipe==0.10.14
+# numpy
+# python-multipart
+# python-dotenv
+
+
+# --- Web / API ---
 fastapi
 uvicorn[standard]
+python-dotenv
+python-multipart
+
+# --- AI / Gemini ---
+google-generativeai
+
+# --- Resume Parsing ---
+pdfplumber
+PyPDF2
+
+# --- ML / CV (your existing stack) ---
 opencv-python-headless
 mediapipe==0.10.14
 numpy
-python-multipart
-python-dotenv
-
-
