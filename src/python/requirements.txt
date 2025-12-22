@@ -22,5 +22,5 @@ PyPDF2
 
 # --- ML / CV (your existing stack) ---
 opencv-python-headless
-mediapipe>=0.10.14
+mediapipe
 numpy
