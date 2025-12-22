@@ -114,7 +114,8 @@ const pythonService = require("../services/pythonService");
 // 🔹 MAIN UPLOAD ROUTE
 // -------------------------------------------------------
 // Ensure your frontend sends form-data with key 'file'
-router.post("/upload", auth, upload.single("file"), uploadResume);
+router.post("/upload", auth, upload.single("resume"), uploadResume);
+
 
 // -------------------------------------------------------
 // CRUD Routes
@@ -127,24 +128,25 @@ router.delete("/:id", auth, deleteResume);        // Delete
 // 🔹 AI Utility Routes (Direct Service Calls)
 // -------------------------------------------------------
 
-// 1. Text Resume Parsing (Requires the fix above in pythonService)
 router.post("/parse-text", auth, async (req, res) => {
   try {
     const { text, target_role } = req.body;
 
-    if (!text) {
-      return res.status(400).json({ message: "Text is required" });
-    }
-
-    // Now this will work with the update
     const result = await pythonService.analyzeResume(text, target_role);
-    return res.json(result);
+
+    console.log("🐍 PYTHON RESULT ===>", result);
+
+    return res.json({
+      success: true,
+      data: result,
+    });
 
   } catch (err) {
     console.error("Parse-text error:", err);
     return res.status(500).json({ message: "AI text parsing failed" });
   }
 });
+
 
 // 2. Roadmap Generation
 router.post("/roadmap", auth, async (req, res) => {

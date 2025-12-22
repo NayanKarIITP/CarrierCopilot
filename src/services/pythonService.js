@@ -983,8 +983,6 @@
 
 
 
-
-
 // src/services/pythonService.js
 
 const { spawn } = require("child_process");
@@ -996,24 +994,25 @@ const os = require("os");
    CONFIG
 --------------------------------------------------- */
 
-// Python executable (Render/Linux uses python3)
+// Windows → python | Linux/Render → python3
 const PYTHON_EXECUTABLE =
   process.platform === "win32" ? "python" : "python3";
 
-// Python scripts directory
+// Python scripts folder
 const PYTHON_DIR = path.join(__dirname, "../python");
 
 /* ---------------------------------------------------
-   SAFE PYTHON RUNNER (SPAWN)
+   CORE PYTHON RUNNER (BULLETPROOF)
 --------------------------------------------------- */
 
 function runPythonScript(scriptName, args = []) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const scriptPath = path.join(PYTHON_DIR, scriptName);
 
     if (!fs.existsSync(scriptPath)) {
-      console.error("❌ Python script missing:", scriptPath);
-      return resolve(null);
+      return reject(
+        new Error(`❌ Python script not found: ${scriptName}`)
+      );
     }
 
     const py = spawn(PYTHON_EXECUTABLE, [scriptPath, ...args], {
@@ -1023,23 +1022,49 @@ function runPythonScript(scriptName, args = []) {
     let stdout = "";
     let stderr = "";
 
-    py.stdout.on("data", (data) => (stdout += data.toString()));
-    py.stderr.on("data", (data) => (stderr += data.toString()));
+    py.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
 
-    py.on("close", () => {
-      if (stderr) console.warn("[PYTHON STDERR]", stderr);
-
-      try {
-        resolve(JSON.parse(stdout));
-      } catch (e) {
-        console.error("❌ Invalid JSON from Python:", stdout);
-        resolve(null);
-      }
+    py.stderr.on("data", (data) => {
+      stderr += data.toString();
     });
 
     py.on("error", (err) => {
-      console.error("❌ Python spawn error:", err.message);
-      resolve(null);
+      reject(err);
+    });
+
+    py.on("close", () => {
+      if (stderr.trim()) {
+        console.warn("⚠️ PYTHON STDERR:\n", stderr);
+      }
+
+      if (!stdout || !stdout.trim()) {
+        return reject(
+          new Error("❌ Python returned empty output")
+        );
+      }
+
+      // 🔥 SAFE JSON EXTRACTION (NO REGEX)
+      const jsonStart = stdout.indexOf("{");
+      const jsonEnd = stdout.lastIndexOf("}");
+
+      if (jsonStart === -1 || jsonEnd === -1) {
+        console.error("❌ RAW PYTHON OUTPUT:\n", stdout);
+        return reject(
+          new Error("❌ No JSON found in Python output")
+        );
+      }
+
+      const jsonString = stdout.slice(jsonStart, jsonEnd + 1);
+
+      try {
+        const parsed = JSON.parse(jsonString);
+        resolve(parsed);
+      } catch (err) {
+        console.error("❌ JSON PARSE FAILED:\n", jsonString);
+        reject(err);
+      }
     });
   });
 }
@@ -1049,27 +1074,29 @@ function runPythonScript(scriptName, args = []) {
 --------------------------------------------------- */
 
 module.exports = {
-  /* =====================================================
-     RESUME (SPAWN)
-  ===================================================== */
+  /* ================= RESUME ================= */
 
   async processResume(filePath) {
     return runPythonScript("resume_parser.py", [filePath]);
   },
 
-  async analyzeResume(text) {
+  async analyzeResume(text, target_role = null) {
     const tempFile = path.join(os.tmpdir(), `resume_${Date.now()}.txt`);
     fs.writeFileSync(tempFile, text);
 
-    const result = await runPythonScript("resume_parser.py", [tempFile]);
-
-    fs.unlinkSync(tempFile);
-    return result;
+    try {
+      return await runPythonScript("resume_parser.py", [
+        tempFile,
+        target_role || "",
+      ]);
+    } finally {
+      if (fs.existsSync(tempFile)) {
+        fs.unlinkSync(tempFile);
+      }
+    }
   },
 
-  /* =====================================================
-     ROADMAP / MARKET (SPAWN)
-  ===================================================== */
+  /* ================= ROADMAP ================= */
 
   async generateRoadmap(skills, role) {
     return runPythonScript("roadmap_generator.py", [
@@ -1090,9 +1117,7 @@ module.exports = {
     return runPythonScript("market_trends.py");
   },
 
-  /* =====================================================
-     INTERVIEW (SPAWN — FIXED)
-  ===================================================== */
+  /* ================= INTERVIEW ================= */
 
   async getInterviewQuestion(role, level, sessionId = null) {
     return runPythonScript("interview_assistant.py", [

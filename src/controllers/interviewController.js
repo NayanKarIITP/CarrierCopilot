@@ -1264,3 +1264,23 @@ exports.getSessionById = async (req, res) => {
     return res.status(500).json({ success: false });
   }
 };
+
+/**
+ * 6. Get Frame Metrics (FIX)
+ */
+exports.getFrameMetrics = async (req, res) => {
+  try {
+    return res.json({
+      success: true,
+      data: {
+        frames: [],
+        fps: 0,
+        confidence: 0,
+      },
+    });
+  } catch (err) {
+    console.error("Frame metrics error:", err);
+    return res.status(500).json({ success: false });
+  }
+};
+

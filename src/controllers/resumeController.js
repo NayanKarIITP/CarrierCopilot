@@ -582,3 +582,42 @@ exports.deleteResume = async (req, res) => {
     return res.status(500).json({ success: false });
   }
 };
+/**
+ * Parse Resume Text (TEXT ONLY – no file)
+ */
+exports.parseText = async (req, res) => {
+  try {
+    const { text } = req.body;
+
+    if (!text) {
+      return res.status(400).json({
+        success: false,
+        message: "Text is required",
+      });
+    }
+
+    console.log("📄 Parsing resume text...");
+
+    const result = await pythonService.parseResumeText(text);
+
+    if (!result) {
+      return res.status(400).json({
+        success: false,
+        message: "Resume text parsing failed",
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: result,
+    });
+
+  } catch (err) {
+    console.error("Parse Text Error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      details: err.message,
+    });
+  }
+};
