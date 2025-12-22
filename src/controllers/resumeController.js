@@ -627,6 +627,216 @@
 
 
 
+////Second last(working)
+// const path = require("path");
+// const fs = require("fs");
+// const os = require("os");
+// const Resume = require("../models/Resume");
+// const User = require("../models/user");
+// const pythonService = require("../services/pythonService");
+
+// // --------------------------------------------------
+// // CONFIG
+// // --------------------------------------------------
+// const UPLOAD_DIR = path.join(__dirname, "../../uploads");
+
+// // Ensure uploads directory exists
+// if (!fs.existsSync(UPLOAD_DIR)) {
+//   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+// }
+
+// // --------------------------------------------------
+// // UPLOAD & PROCESS RESUME
+// // --------------------------------------------------
+// exports.uploadResume = async (req, res) => {
+//   let tempPath = null;
+//   let finalPath = null;
+
+//   try {
+//     if (!req.file) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "No file uploaded",
+//       });
+//     }
+
+//     const buffer = req.file.buffer;
+//     const originalName = req.file.originalname;
+
+//     // ---------------- TEMP FILE (for Python) ----------------
+//     tempPath = path.join(os.tmpdir(), `${Date.now()}-${originalName}`);
+//     fs.writeFileSync(tempPath, buffer);
+
+//     // ---------------- PYTHON PROCESS ----------------
+//     const result = await pythonService.processResume(tempPath);
+
+//     if (!result || result.success === false) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Resume parsing failed",
+//       });
+//     }
+
+//     // ---------------- NORMALIZE DATA ----------------
+//     const parsedObj = result.parsed || {};
+//     const analysisObj = result.analysis || {};
+
+//     const score = analysisObj.resume_score || 0;
+//     const feedback = analysisObj.feedback || [];
+//     const strengths = analysisObj.strengths || [];
+//     const weaknesses = analysisObj.weaknesses || [];
+
+//     const skills = parsedObj.skills || [];
+//     const education = parsedObj.education || [];
+//     const experience = parsedObj.experience || [];
+
+//     // ---------------- REMOVE OLD RESUME ----------------
+//     const existingResume = await Resume.findOne({
+//       userId: req.user._id,
+//     });
+
+//     if (existingResume) {
+//       if (existingResume.filePath && fs.existsSync(existingResume.filePath)) {
+//         fs.unlinkSync(existingResume.filePath);
+//       }
+//       await Resume.deleteOne({ _id: existingResume._id });
+//     }
+
+//     // ---------------- SAVE FINAL PDF ----------------
+//     const fileName = `${req.user._id}-${Date.now()}.pdf`;
+//     finalPath = path.join(UPLOAD_DIR, fileName);
+//     fs.writeFileSync(finalPath, buffer);
+
+//     const fileURL = `/api/resume/file/${fileName}`;
+
+//     // ---------------- SAVE DB ----------------
+//     const resumeDoc = await Resume.create({
+//       userId: req.user._id,
+//       rawText: parsedObj.raw_text || "",
+//       skills,
+//       education,
+//       experience,
+//       score,
+//       feedback,
+//       strengths,
+//       weaknesses,
+//       filePath: finalPath,
+//       fileURL,
+//     });
+
+//     await User.findByIdAndUpdate(req.user._id, {
+//       resumeUploaded: true,
+//       resumeScore: score,
+//       extractedSkills: skills,
+//     });
+
+//     return res.json({
+//       success: true,
+//       data: {
+//         resume: resumeDoc,
+//         parsedResume: {
+//           skills,
+//           education,
+//           experience,
+//           score,
+//           feedback,
+//           strengths,
+//           weaknesses,
+//         },
+//       },
+//     });
+//   } catch (err) {
+//     console.error("Upload Resume Error:", err);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Server error",
+//       details: err.message,
+//     });
+//   } finally {
+//     // Cleanup temp file
+//     if (tempPath && fs.existsSync(tempPath)) {
+//       fs.unlinkSync(tempPath);
+//     }
+//   }
+// };
+
+// // --------------------------------------------------
+// // LIST USER RESUMES
+// // --------------------------------------------------
+// exports.listUserResumes = async (req, res) => {
+//   try {
+//     const resumes = await Resume.find({
+//       userId: req.user._id,
+//     }).sort({ createdAt: -1 });
+
+//     return res.json({
+//       success: true,
+//       data: resumes,
+//     });
+//   } catch (err) {
+//     return res.status(500).json({ success: false });
+//   }
+// };
+
+// // --------------------------------------------------
+// // GET SINGLE RESUME
+// // --------------------------------------------------
+// exports.getResume = async (req, res) => {
+//   try {
+//     const resume = await Resume.findById(req.params.id);
+
+//     if (!resume) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Resume not found",
+//       });
+//     }
+
+//     return res.json({
+//       success: true,
+//       data: resume,
+//     });
+//   } catch (err) {
+//     return res.status(500).json({ success: false });
+//   }
+// };
+
+// // --------------------------------------------------
+// // DELETE RESUME
+// // --------------------------------------------------
+// exports.deleteResume = async (req, res) => {
+//   try {
+//     const resume = await Resume.findById(req.params.id);
+
+//     if (!resume) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Resume not found",
+//       });
+//     }
+
+//     if (resume.userId.toString() !== req.user._id.toString()) {
+//       return res.status(403).json({
+//         success: false,
+//         message: "Not authorized",
+//       });
+//     }
+
+//     if (resume.filePath && fs.existsSync(resume.filePath)) {
+//       fs.unlinkSync(resume.filePath);
+//     }
+
+//     await resume.deleteOne();
+//     return res.json({ success: true });
+//   } catch (err) {
+//     return res.status(500).json({ success: false });
+//   }
+// };
+
+
+
+
+
 
 const path = require("path");
 const fs = require("fs");
@@ -640,7 +850,6 @@ const pythonService = require("../services/pythonService");
 // --------------------------------------------------
 const UPLOAD_DIR = path.join(__dirname, "../../uploads");
 
-// Ensure uploads directory exists
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
@@ -663,11 +872,11 @@ exports.uploadResume = async (req, res) => {
     const buffer = req.file.buffer;
     const originalName = req.file.originalname;
 
-    // ---------------- TEMP FILE (for Python) ----------------
+    // TEMP FILE (for Python)
     tempPath = path.join(os.tmpdir(), `${Date.now()}-${originalName}`);
     fs.writeFileSync(tempPath, buffer);
 
-    // ---------------- PYTHON PROCESS ----------------
+    // PYTHON PROCESS
     const result = await pythonService.processResume(tempPath);
 
     if (!result || result.success === false) {
@@ -677,7 +886,7 @@ exports.uploadResume = async (req, res) => {
       });
     }
 
-    // ---------------- NORMALIZE DATA ----------------
+    // NORMALIZE DATA
     const parsedObj = result.parsed || {};
     const analysisObj = result.analysis || {};
 
@@ -690,11 +899,8 @@ exports.uploadResume = async (req, res) => {
     const education = parsedObj.education || [];
     const experience = parsedObj.experience || [];
 
-    // ---------------- REMOVE OLD RESUME ----------------
-    const existingResume = await Resume.findOne({
-      userId: req.user._id,
-    });
-
+    // REMOVE OLD RESUME
+    const existingResume = await Resume.findOne({ userId: req.user._id });
     if (existingResume) {
       if (existingResume.filePath && fs.existsSync(existingResume.filePath)) {
         fs.unlinkSync(existingResume.filePath);
@@ -702,14 +908,15 @@ exports.uploadResume = async (req, res) => {
       await Resume.deleteOne({ _id: existingResume._id });
     }
 
-    // ---------------- SAVE FINAL PDF ----------------
+    // SAVE FINAL PDF
     const fileName = `${req.user._id}-${Date.now()}.pdf`;
     finalPath = path.join(UPLOAD_DIR, fileName);
     fs.writeFileSync(finalPath, buffer);
 
-    const fileURL = `/api/resume/file/${fileName}`;
+    // ✅ ABSOLUTE URL (FIX)
+    const fileURL = `${req.protocol}://${req.get("host")}/api/resume/file/${fileName}`;
 
-    // ---------------- SAVE DB ----------------
+    // SAVE DB
     const resumeDoc = await Resume.create({
       userId: req.user._id,
       rawText: parsedObj.raw_text || "",
@@ -753,7 +960,6 @@ exports.uploadResume = async (req, res) => {
       details: err.message,
     });
   } finally {
-    // Cleanup temp file
     if (tempPath && fs.existsSync(tempPath)) {
       fs.unlinkSync(tempPath);
     }
@@ -765,15 +971,12 @@ exports.uploadResume = async (req, res) => {
 // --------------------------------------------------
 exports.listUserResumes = async (req, res) => {
   try {
-    const resumes = await Resume.find({
-      userId: req.user._id,
-    }).sort({ createdAt: -1 });
-
-    return res.json({
-      success: true,
-      data: resumes,
+    const resumes = await Resume.find({ userId: req.user._id }).sort({
+      createdAt: -1,
     });
-  } catch (err) {
+
+    return res.json({ success: true, data: resumes });
+  } catch {
     return res.status(500).json({ success: false });
   }
 };
@@ -784,19 +987,11 @@ exports.listUserResumes = async (req, res) => {
 exports.getResume = async (req, res) => {
   try {
     const resume = await Resume.findById(req.params.id);
-
     if (!resume) {
-      return res.status(404).json({
-        success: false,
-        message: "Resume not found",
-      });
+      return res.status(404).json({ success: false, message: "Resume not found" });
     }
-
-    return res.json({
-      success: true,
-      data: resume,
-    });
-  } catch (err) {
+    return res.json({ success: true, data: resume });
+  } catch {
     return res.status(500).json({ success: false });
   }
 };
@@ -807,19 +1002,12 @@ exports.getResume = async (req, res) => {
 exports.deleteResume = async (req, res) => {
   try {
     const resume = await Resume.findById(req.params.id);
-
     if (!resume) {
-      return res.status(404).json({
-        success: false,
-        message: "Resume not found",
-      });
+      return res.status(404).json({ success: false, message: "Resume not found" });
     }
 
     if (resume.userId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: "Not authorized",
-      });
+      return res.status(403).json({ success: false, message: "Not authorized" });
     }
 
     if (resume.filePath && fs.existsSync(resume.filePath)) {
@@ -828,7 +1016,7 @@ exports.deleteResume = async (req, res) => {
 
     await resume.deleteOne();
     return res.json({ success: true });
-  } catch (err) {
+  } catch {
     return res.status(500).json({ success: false });
   }
 };
