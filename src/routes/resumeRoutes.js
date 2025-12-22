@@ -239,7 +239,7 @@ const {
 const pythonService = require("../services/pythonService");
 
 // ---------------- FILE SERVE (FIRST) ----------------
-router.get("/file/:filename", auth, (req, res) => {
+router.get("/file/:filename", (req, res) => {
   try {
     const filePath = path.join(
       __dirname,
