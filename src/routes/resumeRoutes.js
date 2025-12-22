@@ -95,8 +95,136 @@
 
 
 
+//Last working one
+// const express = require("express");
+// const router = express.Router();
+
+// const upload = require("../middleware/uploadMiddleware");
+// const auth = require("../middleware/authMiddleware");
+
+// const {
+//   uploadResume,
+//   listUserResumes,
+//   getResume,
+//   deleteResume,
+// } = require("../controllers/resumeController");
+
+// const pythonService = require("../services/pythonService");
+
+// // -------------------------------------------------------
+// // 🔹 MAIN UPLOAD ROUTE
+// // -------------------------------------------------------
+// // Ensure your frontend sends form-data with key 'file'
+// router.post("/upload", auth, upload.single("resume"), uploadResume);
+
+
+// // -------------------------------------------------------
+// // CRUD Routes
+// // -------------------------------------------------------
+// router.get("/", auth, listUserResumes);           // List all
+// router.get("/:id", auth, getResume);              // Get specific
+// router.delete("/:id", auth, deleteResume);        // Delete
+
+// // -------------------------------------------------------
+// // 🔹 AI Utility Routes (Direct Service Calls)
+// // -------------------------------------------------------
+
+// router.post("/parse-text", auth, async (req, res) => {
+//   try {
+//     const { text, target_role } = req.body;
+
+//     const result = await pythonService.analyzeResume(text, target_role);
+
+//     console.log("🐍 PYTHON RESULT ===>", result);
+
+//     return res.json({
+//       success: true,
+//       data: result,
+//     });
+
+//   } catch (err) {
+//     console.error("Parse-text error:", err);
+//     return res.status(500).json({ message: "AI text parsing failed" });
+//   }
+// });
+
+
+// // 2. Roadmap Generation
+// router.post("/roadmap", auth, async (req, res) => {
+//   try {
+//     const { skills, role } = req.body;
+
+//     if (!skills || !role) {
+//       return res.status(400).json({ message: "skills and role required" });
+//     }
+
+//     const result = await pythonService.generateRoadmap(skills, role);
+//     return res.json(result);
+
+//   } catch (err) {
+//     console.error("Roadmap error:", err);
+//     return res.status(500).json({ message: "AI roadmap generation failed" });
+//   }
+// });
+
+// // 3. Skill Gap Analyzer
+// router.post("/skill-gap", auth, async (req, res) => {
+//   try {
+//     const { resumeSkills, targetRole } = req.body;
+
+//     const result = await pythonService.skillGapAnalyzer(
+//       resumeSkills,
+//       targetRole
+//     );
+
+//     return res.json(result);
+
+//   } catch (err) {
+//     console.error("Skill gap error:", err);
+//     return res.status(500).json({ message: "AI skill gap analysis failed" });
+//   }
+// });
+
+// const path = require("path");
+// const fs = require("fs");
+
+// // -------------------------------------------------------
+// // 🔹 SERVE UPLOADED RESUME PDF (PRODUCTION SAFE)
+// // -------------------------------------------------------
+// router.get("/file/:filename", auth, (req, res) => {
+//   try {
+//     const filePath = path.join(
+//       __dirname,
+//       "../../uploads",
+//       req.params.filename
+//     );
+
+//     if (!fs.existsSync(filePath)) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Resume file not found",
+//       });
+//     }
+
+//     res.setHeader("Content-Type", "application/pdf");
+//     res.sendFile(filePath);
+//   } catch (err) {
+//     console.error("Resume file serve error:", err);
+//     res.status(500).json({ success: false });
+//   }
+// });
+
+// module.exports = router;
+
+
+
+
+
+
 const express = require("express");
 const router = express.Router();
+const path = require("path");
+const fs = require("fs");
 
 const upload = require("../middleware/uploadMiddleware");
 const auth = require("../middleware/authMiddleware");
@@ -110,78 +238,71 @@ const {
 
 const pythonService = require("../services/pythonService");
 
-// -------------------------------------------------------
-// 🔹 MAIN UPLOAD ROUTE
-// -------------------------------------------------------
-// Ensure your frontend sends form-data with key 'file'
+// ---------------- FILE SERVE (FIRST) ----------------
+router.get("/file/:filename", auth, (req, res) => {
+  try {
+    const filePath = path.join(
+      __dirname,
+      "../../uploads",
+      req.params.filename
+    );
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({
+        success: false,
+        message: "Resume file not found",
+      });
+    }
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.sendFile(filePath);
+  } catch (err) {
+    console.error("Resume file serve error:", err);
+    res.status(500).json({ success: false });
+  }
+});
+
+// ---------------- UPLOAD ----------------
 router.post("/upload", auth, upload.single("resume"), uploadResume);
 
-
-// -------------------------------------------------------
-// CRUD Routes
-// -------------------------------------------------------
-router.get("/", auth, listUserResumes);           // List all
-router.get("/:id", auth, getResume);              // Get specific
-router.delete("/:id", auth, deleteResume);        // Delete
-
-// -------------------------------------------------------
-// 🔹 AI Utility Routes (Direct Service Calls)
-// -------------------------------------------------------
-
+// ---------------- AI ROUTES ----------------
 router.post("/parse-text", auth, async (req, res) => {
   try {
     const { text, target_role } = req.body;
-
     const result = await pythonService.analyzeResume(text, target_role);
-
-    console.log("🐍 PYTHON RESULT ===>", result);
-
-    return res.json({
-      success: true,
-      data: result,
-    });
-
+    return res.json({ success: true, data: result });
   } catch (err) {
     console.error("Parse-text error:", err);
-    return res.status(500).json({ message: "AI text parsing failed" });
+    res.status(500).json({ message: "AI text parsing failed" });
   }
 });
 
-
-// 2. Roadmap Generation
 router.post("/roadmap", auth, async (req, res) => {
   try {
     const { skills, role } = req.body;
-
-    if (!skills || !role) {
-      return res.status(400).json({ message: "skills and role required" });
-    }
-
     const result = await pythonService.generateRoadmap(skills, role);
     return res.json(result);
-
   } catch (err) {
-    console.error("Roadmap error:", err);
-    return res.status(500).json({ message: "AI roadmap generation failed" });
+    res.status(500).json({ message: "AI roadmap generation failed" });
   }
 });
 
-// 3. Skill Gap Analyzer
 router.post("/skill-gap", auth, async (req, res) => {
   try {
     const { resumeSkills, targetRole } = req.body;
-
     const result = await pythonService.skillGapAnalyzer(
       resumeSkills,
       targetRole
     );
-
     return res.json(result);
-
   } catch (err) {
-    console.error("Skill gap error:", err);
-    return res.status(500).json({ message: "AI skill gap analysis failed" });
+    res.status(500).json({ message: "AI skill gap analysis failed" });
   }
 });
+
+// ---------------- CRUD (LAST) ----------------
+router.get("/", auth, listUserResumes);
+router.get("/:id", auth, getResume);
+router.delete("/:id", auth, deleteResume);
 
 module.exports = router;

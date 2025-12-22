@@ -384,7 +384,249 @@
 
 
 
-// src/controllers/resumeController.js
+//Last working one
+// // src/controllers/resumeController.js
+
+// const path = require("path");
+// const fs = require("fs");
+// const os = require("os");
+// const Resume = require("../models/Resume");
+// const User = require("../models/user");
+// const pythonService = require("../services/pythonService");
+
+// /**
+//  * Upload & Process Resume (RENDER + PROD SAFE)
+//  */
+// exports.uploadResume = async (req, res) => {
+//   let tempPath = null;
+
+//   try {
+//     console.log("📄 FILE ===>", req.file);
+//     console.log("📦 BODY ===>", req.body);
+//     if (!req.file) {
+//       return res
+//         .status(400)
+//         .json({ success: false, message: "No file uploaded" });
+//     }
+
+//     const buffer = req.file.buffer;
+//     const originalName = req.file.originalname;
+
+//     // ---------------------------------------------------------
+//     // ✅ CREATE TEMP FILE (RENDER SAFE)
+//     // ---------------------------------------------------------
+//     tempPath = path.join(os.tmpdir(), `${Date.now()}-${originalName}`);
+//     fs.writeFileSync(tempPath, buffer);
+
+//     console.log("📤 Sending resume to Python service...");
+
+//     // ---- CALL PYTHON (SPAWN BASED) ----
+//     const result = await pythonService.processResume(tempPath);
+
+//     if (!result || result.success === false) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Python resume parsing failed",
+//       });
+//     }
+
+//     // ---------------------------------------------------------
+//     // ✅ NORMALIZE PYTHON RESPONSE
+//     // ---------------------------------------------------------
+//     const parsedObj = result.parsed || {};
+//     const analysisObj = result.analysis || {};
+
+//     const score =
+//       analysisObj.resume_score ||
+//       parsedObj.score ||
+//       result.score ||
+//       0;
+
+//     const feedback =
+//       analysisObj.feedback ||
+//       parsedObj.feedback ||
+//       [];
+
+//     let strengths = analysisObj.strengths || [];
+//     let weaknesses = analysisObj.weaknesses || [];
+
+//     if (!strengths.length && feedback.length) {
+//       strengths = feedback.slice(0, Math.ceil(feedback.length / 2));
+//     }
+
+//     if (!weaknesses.length && feedback.length) {
+//       weaknesses = feedback.slice(Math.ceil(feedback.length / 2));
+//     }
+
+//     const skills = parsedObj.skills || ["General Technical Skills"];
+//     const education = parsedObj.education || [];
+//     const experience = parsedObj.experience || [];
+
+//     // ---------------------------------------------------------
+//     // ✅ DELETE OLD RESUME (ONE PER USER)
+//     // ---------------------------------------------------------
+//     const existingResume = await Resume.findOne({
+//       userId: req.user._id,
+//     });
+
+//     if (existingResume) {
+//       await Resume.deleteOne({ _id: existingResume._id });
+//     }
+
+//     // ---------------------------------------------------------
+//     // ✅ SAVE NEW RESUME (NO FILE PATH)
+//     // ---------------------------------------------------------
+//     const resumeDoc = await Resume.create({
+//       userId: req.user._id,
+//       rawText: parsedObj.raw_text || "",
+//       skills,
+//       education,
+//       experience,
+//       score,
+//       feedback,
+//       strengths,
+//       weaknesses,
+//       fileURL: null,
+//     });
+    
+
+//     await User.findByIdAndUpdate(req.user._id, {
+//       resumeUploaded: true,
+//       resumeScore: score,
+//       extractedSkills: skills,
+//       skillGaps: parsedObj.skill_gaps || [],
+//       roadmapGenerated: true,
+//     });
+
+//     return res.json({
+//       success: true,
+//       data: {
+//         resume: resumeDoc,
+//         parsedResume: {
+//           skills,
+//           education,
+//           experience,
+//           score,
+//           feedback,
+//           strengths,
+//           weaknesses,
+//           raw_text: parsedObj.raw_text || "",
+//         },
+//       },
+//     });
+//   } catch (err) {
+//     console.error("Upload Resume Error:", err);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Server error",
+//       details: err.message,
+//     });
+//   } finally {
+//     // ---------------------------------------------------------
+//     // ✅ GUARANTEED TEMP FILE CLEANUP
+//     // ---------------------------------------------------------
+//     try {
+//       if (tempPath && fs.existsSync(tempPath)) {
+//         fs.unlinkSync(tempPath);
+//       }
+//     } catch (cleanupErr) {
+//       console.warn("⚠️ Temp file cleanup failed:", cleanupErr.message);
+//     }
+//   }
+// };
+
+// /* ---------------- OTHER CONTROLLERS (UNCHANGED) ---------------- */
+
+// exports.listUserResumes = async (req, res) => {
+//   try {
+//     const resumes = await Resume.find({
+//       userId: req.user._id,
+//     }).sort({ createdAt: -1 });
+
+//     return res.json({ success: true, data: resumes });
+//   } catch (err) {
+//     return res.status(500).json({ success: false });
+//   }
+// };
+
+// exports.getResume = async (req, res) => {
+//   try {
+//     const resume = await Resume.findById(req.params.id);
+//     if (!resume) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Resume not found" });
+//     }
+//     return res.json({ success: true, data: resume });
+//   } catch {
+//     return res.status(500).json({ success: false });
+//   }
+// };
+
+// exports.deleteResume = async (req, res) => {
+//   try {
+//     const resume = await Resume.findById(req.params.id);
+//     if (!resume) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Resume not found" });
+//     }
+
+//     if (resume.userId.toString() !== req.user._id.toString()) {
+//       return res
+//         .status(403)
+//         .json({ success: false, message: "Not authorized" });
+//     }
+
+//     await resume.deleteOne();
+//     return res.json({ success: true });
+//   } catch {
+//     return res.status(500).json({ success: false });
+//   }
+// };
+// /**
+//  * Parse Resume Text (TEXT ONLY – no file)
+//  */
+// exports.parseText = async (req, res) => {
+//   try {
+//     const { text } = req.body;
+
+//     if (!text) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Text is required",
+//       });
+//     }
+
+//     console.log("📄 Parsing resume text...");
+
+//     const result = await pythonService.parseResumeText(text);
+
+//     if (!result) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Resume text parsing failed",
+//       });
+//     }
+
+//     return res.json({
+//       success: true,
+//       data: result,
+//     });
+
+//   } catch (err) {
+//     console.error("Parse Text Error:", err);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Server error",
+//       details: err.message,
+//     });
+//   }
+// };
+
+
+
+
 
 const path = require("path");
 const fs = require("fs");
@@ -393,88 +635,81 @@ const Resume = require("../models/Resume");
 const User = require("../models/user");
 const pythonService = require("../services/pythonService");
 
-/**
- * Upload & Process Resume (RENDER + PROD SAFE)
- */
+// --------------------------------------------------
+// CONFIG
+// --------------------------------------------------
+const UPLOAD_DIR = path.join(__dirname, "../../uploads");
+
+// Ensure uploads directory exists
+if (!fs.existsSync(UPLOAD_DIR)) {
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+}
+
+// --------------------------------------------------
+// UPLOAD & PROCESS RESUME
+// --------------------------------------------------
 exports.uploadResume = async (req, res) => {
   let tempPath = null;
+  let finalPath = null;
 
   try {
-    console.log("📄 FILE ===>", req.file);
-    console.log("📦 BODY ===>", req.body);
     if (!req.file) {
-      return res
-        .status(400)
-        .json({ success: false, message: "No file uploaded" });
+      return res.status(400).json({
+        success: false,
+        message: "No file uploaded",
+      });
     }
 
     const buffer = req.file.buffer;
     const originalName = req.file.originalname;
 
-    // ---------------------------------------------------------
-    // ✅ CREATE TEMP FILE (RENDER SAFE)
-    // ---------------------------------------------------------
+    // ---------------- TEMP FILE (for Python) ----------------
     tempPath = path.join(os.tmpdir(), `${Date.now()}-${originalName}`);
     fs.writeFileSync(tempPath, buffer);
 
-    console.log("📤 Sending resume to Python service...");
-
-    // ---- CALL PYTHON (SPAWN BASED) ----
+    // ---------------- PYTHON PROCESS ----------------
     const result = await pythonService.processResume(tempPath);
 
     if (!result || result.success === false) {
       return res.status(400).json({
         success: false,
-        message: "Python resume parsing failed",
+        message: "Resume parsing failed",
       });
     }
 
-    // ---------------------------------------------------------
-    // ✅ NORMALIZE PYTHON RESPONSE
-    // ---------------------------------------------------------
+    // ---------------- NORMALIZE DATA ----------------
     const parsedObj = result.parsed || {};
     const analysisObj = result.analysis || {};
 
-    const score =
-      analysisObj.resume_score ||
-      parsedObj.score ||
-      result.score ||
-      0;
+    const score = analysisObj.resume_score || 0;
+    const feedback = analysisObj.feedback || [];
+    const strengths = analysisObj.strengths || [];
+    const weaknesses = analysisObj.weaknesses || [];
 
-    const feedback =
-      analysisObj.feedback ||
-      parsedObj.feedback ||
-      [];
-
-    let strengths = analysisObj.strengths || [];
-    let weaknesses = analysisObj.weaknesses || [];
-
-    if (!strengths.length && feedback.length) {
-      strengths = feedback.slice(0, Math.ceil(feedback.length / 2));
-    }
-
-    if (!weaknesses.length && feedback.length) {
-      weaknesses = feedback.slice(Math.ceil(feedback.length / 2));
-    }
-
-    const skills = parsedObj.skills || ["General Technical Skills"];
+    const skills = parsedObj.skills || [];
     const education = parsedObj.education || [];
     const experience = parsedObj.experience || [];
 
-    // ---------------------------------------------------------
-    // ✅ DELETE OLD RESUME (ONE PER USER)
-    // ---------------------------------------------------------
+    // ---------------- REMOVE OLD RESUME ----------------
     const existingResume = await Resume.findOne({
       userId: req.user._id,
     });
 
     if (existingResume) {
+      if (existingResume.filePath && fs.existsSync(existingResume.filePath)) {
+        fs.unlinkSync(existingResume.filePath);
+      }
       await Resume.deleteOne({ _id: existingResume._id });
     }
 
-    // ---------------------------------------------------------
-    // ✅ SAVE NEW RESUME (NO FILE PATH)
-    // ---------------------------------------------------------
+    // ---------------- SAVE FINAL PDF ----------------
+    const fileName = `${req.user._id}-${Date.now()}.pdf`;
+    finalPath = path.join(UPLOAD_DIR, fileName);
+    fs.writeFileSync(finalPath, buffer);
+
+    const fileURL = `/api/resume/file/${fileName}`;
+
+    // ---------------- SAVE DB ----------------
     const resumeDoc = await Resume.create({
       userId: req.user._id,
       rawText: parsedObj.raw_text || "",
@@ -485,15 +720,14 @@ exports.uploadResume = async (req, res) => {
       feedback,
       strengths,
       weaknesses,
-      fileURL: null,
+      filePath: finalPath,
+      fileURL,
     });
 
     await User.findByIdAndUpdate(req.user._id, {
       resumeUploaded: true,
       resumeScore: score,
       extractedSkills: skills,
-      skillGaps: parsedObj.skill_gaps || [],
-      roadmapGenerated: true,
     });
 
     return res.json({
@@ -508,7 +742,6 @@ exports.uploadResume = async (req, res) => {
           feedback,
           strengths,
           weaknesses,
-          raw_text: parsedObj.raw_text || "",
         },
       },
     });
@@ -520,104 +753,82 @@ exports.uploadResume = async (req, res) => {
       details: err.message,
     });
   } finally {
-    // ---------------------------------------------------------
-    // ✅ GUARANTEED TEMP FILE CLEANUP
-    // ---------------------------------------------------------
-    try {
-      if (tempPath && fs.existsSync(tempPath)) {
-        fs.unlinkSync(tempPath);
-      }
-    } catch (cleanupErr) {
-      console.warn("⚠️ Temp file cleanup failed:", cleanupErr.message);
+    // Cleanup temp file
+    if (tempPath && fs.existsSync(tempPath)) {
+      fs.unlinkSync(tempPath);
     }
   }
 };
 
-/* ---------------- OTHER CONTROLLERS (UNCHANGED) ---------------- */
-
+// --------------------------------------------------
+// LIST USER RESUMES
+// --------------------------------------------------
 exports.listUserResumes = async (req, res) => {
   try {
     const resumes = await Resume.find({
       userId: req.user._id,
     }).sort({ createdAt: -1 });
 
-    return res.json({ success: true, data: resumes });
+    return res.json({
+      success: true,
+      data: resumes,
+    });
   } catch (err) {
     return res.status(500).json({ success: false });
   }
 };
 
+// --------------------------------------------------
+// GET SINGLE RESUME
+// --------------------------------------------------
 exports.getResume = async (req, res) => {
   try {
     const resume = await Resume.findById(req.params.id);
+
     if (!resume) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Resume not found" });
-    }
-    return res.json({ success: true, data: resume });
-  } catch {
-    return res.status(500).json({ success: false });
-  }
-};
-
-exports.deleteResume = async (req, res) => {
-  try {
-    const resume = await Resume.findById(req.params.id);
-    if (!resume) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Resume not found" });
-    }
-
-    if (resume.userId.toString() !== req.user._id.toString()) {
-      return res
-        .status(403)
-        .json({ success: false, message: "Not authorized" });
-    }
-
-    await resume.deleteOne();
-    return res.json({ success: true });
-  } catch {
-    return res.status(500).json({ success: false });
-  }
-};
-/**
- * Parse Resume Text (TEXT ONLY – no file)
- */
-exports.parseText = async (req, res) => {
-  try {
-    const { text } = req.body;
-
-    if (!text) {
-      return res.status(400).json({
+      return res.status(404).json({
         success: false,
-        message: "Text is required",
-      });
-    }
-
-    console.log("📄 Parsing resume text...");
-
-    const result = await pythonService.parseResumeText(text);
-
-    if (!result) {
-      return res.status(400).json({
-        success: false,
-        message: "Resume text parsing failed",
+        message: "Resume not found",
       });
     }
 
     return res.json({
       success: true,
-      data: result,
+      data: resume,
     });
-
   } catch (err) {
-    console.error("Parse Text Error:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Server error",
-      details: err.message,
-    });
+    return res.status(500).json({ success: false });
+  }
+};
+
+// --------------------------------------------------
+// DELETE RESUME
+// --------------------------------------------------
+exports.deleteResume = async (req, res) => {
+  try {
+    const resume = await Resume.findById(req.params.id);
+
+    if (!resume) {
+      return res.status(404).json({
+        success: false,
+        message: "Resume not found",
+      });
+    }
+
+    if (resume.userId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized",
+      });
+    }
+
+    if (resume.filePath && fs.existsSync(resume.filePath)) {
+      fs.unlinkSync(resume.filePath);
+    }
+
+    await resume.deleteOne();
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ success: false });
   }
 };
