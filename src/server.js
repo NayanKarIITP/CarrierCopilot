@@ -45,47 +45,56 @@
 
 
 
-
 // src/server.js
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
+const path = require("path");
 require("dotenv").config();
 
 const app = express();
 
-/* ---------------- CORS ---------------- */
+/* ------------------ CORS ------------------ */
 app.use(
   cors({
-    origin: (origin, cb) => cb(null, true),
+    origin: [
+      "http://localhost:3000",
+      "http://localhost:5173",
+      /\.vercel\.app$/,
+    ],
     credentials: true,
   })
 );
 
-/* ❗ DO NOT PARSE JSON BEFORE MULTER ROUTES */
-app.use(cookieParser());
-
-/* ---------------- ROUTES ---------------- */
-app.use("/api/auth", require("./routes/authRoutes"));
-app.use("/api/user", require("./routes/userRoutes"));
-app.use("/api/resume", require("./routes/resumeRoutes")); // ⬅ multer lives here
-app.use("/api/interview", require("./routes/interviewRoutes"));
-app.use("/api/roadmap", require("./routes/roadmapRoutes"));
-app.use("/api/trends", require("./routes/trendRoutes"));
-
-/* ---------------- JSON PARSER (AFTER) ---------------- */
+/* ------------------ BODY ------------------ */
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-/* ---------------- HEALTH ---------------- */
-app.get("/", (_, res) => res.json({ ok: true }));
+app.use(cookieParser());
 
-/* ---------------- ERROR HANDLER (CRITICAL) ---------------- */
-app.use((err, req, res, next) => {
-  console.error("🔥 GLOBAL ERROR:", err.message);
-  res.status(400).json({ success: false, message: err.message });
+/* ------------------ STATIC ------------------ */
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+/* ------------------ DB ------------------ */
+require("./config/db")();
+
+/* ------------------ ROUTES ------------------ */
+app.use("/api/auth", require("./routes/authRoutes"));
+app.use("/api/user", require("./routes/userRoutes"));
+app.use("/api/resume", require("./routes/resumeRoutes"));
+app.use("/api/interview", require("./routes/interviewRoutes"));
+app.use("/api/roadmap", require("./routes/roadmapRoutes"));
+app.use("/api/settings", require("./routes/settingsRoutes"));
+app.use("/api/trends", require("./routes/trendRoutes"));
+app.use("/api/dashboard", require("./routes/dashboardRoutes"));
+
+/* ------------------ HEALTH ------------------ */
+app.get("/", (_, res) => {
+  res.json({ success: true, message: "Backend running 🚀" });
 });
 
-app.listen(process.env.PORT || 5000, () =>
-  console.log("🚀 Backend running")
-);
+/* ------------------ START ------------------ */
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`🚀 Backend running on port ${PORT}`);
+});
