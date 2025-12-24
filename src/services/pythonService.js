@@ -1166,7 +1166,7 @@ const PYTHON_DIR = path.join(__dirname, "../python");
 
 // Python FastAPI server (INTERVIEW ENGINE)
 const PYTHON_API_URL =
-  process.env.PYTHON_API_URL || "https://carriercopilot-nk.onrender.com";
+  process.env.PYTHON_API_URL || "https://carriercopilot.onrender.com";
 
 
 /* ---------------------------------------------------
