@@ -983,12 +983,175 @@
 
 
 
-// src/services/pythonService.js
+// // src/services/pythonService.js(last working on production)
+
+// const { spawn } = require("child_process");
+// const path = require("path");
+// const fs = require("fs");
+// const os = require("os");
+
+// /* ---------------------------------------------------
+//    CONFIG
+// --------------------------------------------------- */
+
+// // Windows → python | Linux/Render → python3
+// const PYTHON_EXECUTABLE =
+//   process.platform === "win32" ? "python" : "python3";
+
+// // Python scripts folder
+// const PYTHON_DIR = path.join(__dirname, "../python");
+
+// /* ---------------------------------------------------
+//    CORE PYTHON RUNNER (BULLETPROOF)
+// --------------------------------------------------- */
+
+// function runPythonScript(scriptName, args = []) {
+//   return new Promise((resolve, reject) => {
+//     const scriptPath = path.join(PYTHON_DIR, scriptName);
+
+//     if (!fs.existsSync(scriptPath)) {
+//       return reject(
+//         new Error(`❌ Python script not found: ${scriptName}`)
+//       );
+//     }
+
+//     const py = spawn(PYTHON_EXECUTABLE, [scriptPath, ...args], {
+//       env: process.env,
+//     });
+
+//     let stdout = "";
+//     let stderr = "";
+
+//     py.stdout.on("data", (data) => {
+//       stdout += data.toString();
+//     });
+
+//     py.stderr.on("data", (data) => {
+//       stderr += data.toString();
+//     });
+
+//     py.on("error", (err) => {
+//       reject(err);
+//     });
+
+//     py.on("close", () => {
+//       if (stderr.trim()) {
+//         console.warn("⚠️ PYTHON STDERR:\n", stderr);
+//       }
+
+//       if (!stdout || !stdout.trim()) {
+//         return reject(
+//           new Error("❌ Python returned empty output")
+//         );
+//       }
+
+//       // 🔥 SAFE JSON EXTRACTION (NO REGEX)
+//       const jsonStart = stdout.indexOf("{");
+//       const jsonEnd = stdout.lastIndexOf("}");
+
+//       if (jsonStart === -1 || jsonEnd === -1) {
+//         console.error("❌ RAW PYTHON OUTPUT:\n", stdout);
+//         return reject(
+//           new Error("❌ No JSON found in Python output")
+//         );
+//       }
+
+//       const jsonString = stdout.slice(jsonStart, jsonEnd + 1);
+
+//       try {
+//         const parsed = JSON.parse(jsonString);
+//         resolve(parsed);
+//       } catch (err) {
+//         console.error("❌ JSON PARSE FAILED:\n", jsonString);
+//         reject(err);
+//       }
+//     });
+//   });
+// }
+
+// /* ---------------------------------------------------
+//    EXPORT SERVICES
+// --------------------------------------------------- */
+
+// module.exports = {
+//   /* ================= RESUME ================= */
+
+//   async processResume(filePath) {
+//     return runPythonScript("resume_parser.py", [filePath]);
+//   },
+
+//   async analyzeResume(text, target_role = null) {
+//     const tempFile = path.join(os.tmpdir(), `resume_${Date.now()}.txt`);
+//     fs.writeFileSync(tempFile, text);
+
+//     try {
+//       return await runPythonScript("resume_parser.py", [
+//         tempFile,
+//         target_role || "",
+//       ]);
+//     } finally {
+//       if (fs.existsSync(tempFile)) {
+//         fs.unlinkSync(tempFile);
+//       }
+//     }
+//   },
+
+//   /* ================= ROADMAP ================= */
+
+//   async generateRoadmap(skills, role) {
+//     return runPythonScript("roadmap_generator.py", [
+//       JSON.stringify({ skills, role }),
+//     ]);
+//   },
+
+//   async skillGapAnalyzer(resumeSkills, targetRole) {
+//     return runPythonScript("skill_gap_analyzer.py", [
+//       JSON.stringify({
+//         current_skills: resumeSkills,
+//         target_role: targetRole,
+//       }),
+//     ]);
+//   },
+
+//   async getMarketTrends() {
+//     return runPythonScript("market_trends.py");
+//   },
+
+//   /* ================= INTERVIEW ================= */
+
+//   async getInterviewQuestion(role, level, sessionId = null) {
+//     return runPythonScript("interview_assistant.py", [
+//       JSON.stringify({
+//         action: "question",
+//         role,
+//         level,
+//         sessionId,
+//       }),
+//     ]);
+//   },
+
+//   async analyzeInterview(transcript, question = "") {
+//     return runPythonScript("interview_assistant.py", [
+//       JSON.stringify({
+//         action: "analyze",
+//         transcript,
+//         question,
+//       }),
+//     ]);
+//   },
+// };
+
+
+
+
+
+
 
 const { spawn } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
+const axios = require("axios");
 
 /* ---------------------------------------------------
    CONFIG
@@ -1001,8 +1164,13 @@ const PYTHON_EXECUTABLE =
 // Python scripts folder
 const PYTHON_DIR = path.join(__dirname, "../python");
 
+// Python FastAPI server (INTERVIEW ENGINE)
+const PYTHON_API_URL =
+  process.env.PYTHON_API_URL || "http://localhost:8000";
+
+
 /* ---------------------------------------------------
-   CORE PYTHON RUNNER (BULLETPROOF)
+   CORE PYTHON RUNNER (SPAWN)
 --------------------------------------------------- */
 
 function runPythonScript(scriptName, args = []) {
@@ -1010,9 +1178,7 @@ function runPythonScript(scriptName, args = []) {
     const scriptPath = path.join(PYTHON_DIR, scriptName);
 
     if (!fs.existsSync(scriptPath)) {
-      return reject(
-        new Error(`❌ Python script not found: ${scriptName}`)
-      );
+      return reject(new Error(`Python script not found: ${scriptName}`));
     }
 
     const py = spawn(PYTHON_EXECUTABLE, [scriptPath, ...args], {
@@ -1022,121 +1188,142 @@ function runPythonScript(scriptName, args = []) {
     let stdout = "";
     let stderr = "";
 
-    py.stdout.on("data", (data) => {
-      stdout += data.toString();
-    });
+    py.stdout.on("data", (d) => (stdout += d.toString()));
+    py.stderr.on("data", (d) => (stderr += d.toString()));
 
-    py.stderr.on("data", (data) => {
-      stderr += data.toString();
-    });
-
-    py.on("error", (err) => {
-      reject(err);
-    });
+    py.on("error", reject);
 
     py.on("close", () => {
-      if (stderr.trim()) {
-        console.warn("⚠️ PYTHON STDERR:\n", stderr);
+      if (!stdout.trim()) return reject(new Error("Empty Python output"));
+
+      const start = stdout.indexOf("{");
+      const end = stdout.lastIndexOf("}");
+
+      if (start === -1 || end === -1) {
+        return reject(new Error("JSON not found in Python output"));
       }
-
-      if (!stdout || !stdout.trim()) {
-        return reject(
-          new Error("❌ Python returned empty output")
-        );
-      }
-
-      // 🔥 SAFE JSON EXTRACTION (NO REGEX)
-      const jsonStart = stdout.indexOf("{");
-      const jsonEnd = stdout.lastIndexOf("}");
-
-      if (jsonStart === -1 || jsonEnd === -1) {
-        console.error("❌ RAW PYTHON OUTPUT:\n", stdout);
-        return reject(
-          new Error("❌ No JSON found in Python output")
-        );
-      }
-
-      const jsonString = stdout.slice(jsonStart, jsonEnd + 1);
 
       try {
-        const parsed = JSON.parse(jsonString);
-        resolve(parsed);
+        resolve(JSON.parse(stdout.slice(start, end + 1)));
       } catch (err) {
-        console.error("❌ JSON PARSE FAILED:\n", jsonString);
         reject(err);
       }
     });
   });
 }
 
+
 /* ---------------------------------------------------
-   EXPORT SERVICES
+   RESUME (SPAWN BASED)
+--------------------------------------------------- */
+
+async function processResume(filePath) {
+  return runPythonScript("resume_parser.py", [filePath]);
+}
+
+async function analyzeResume(text, targetRole = null) {
+  const temp = path.join(os.tmpdir(), `resume_${Date.now()}.txt`);
+  fs.writeFileSync(temp, text);
+
+  try {
+    return await runPythonScript("resume_parser.py", [
+      temp,
+      targetRole || "",
+    ]);
+  } finally {
+    if (fs.existsSync(temp)) fs.unlinkSync(temp);
+  }
+}
+
+
+/* ---------------------------------------------------
+   ROADMAP / TRENDS
+--------------------------------------------------- */
+
+async function generateRoadmap(skills, role) {
+  return runPythonScript("roadmap_generator.py", [
+    JSON.stringify({ skills, role }),
+  ]);
+}
+
+async function skillGapAnalyzer(resumeSkills, targetRole) {
+  return runPythonScript("skill_gap_analyzer.py", [
+    JSON.stringify({
+      current_skills: resumeSkills,
+      target_role: targetRole,
+    }),
+  ]);
+}
+
+async function getMarketTrends() {
+  return runPythonScript("market_trends.py");
+}
+
+
+/* ---------------------------------------------------
+   INTERVIEW ENGINE (HTTP API)
+--------------------------------------------------- */
+
+async function getInterviewQuestion(role, level, sessionId = null) {
+  try {
+    let endpoint = "/interview/start";
+    let body = { role, level };
+
+    if (sessionId) {
+      endpoint = "/interview/next-question";
+      body.sessionId = sessionId;
+    }
+
+    const res = await axios.post(`${PYTHON_API_URL}${endpoint}`, body);
+    return res.data?.question || null;
+  } catch (err) {
+    console.error("Interview question error:", err.message);
+    return null;
+  }
+}
+
+async function analyzeInterview(transcript) {
+  try {
+    const res = await axios.post(`${PYTHON_API_URL}/interview/analyze`, {
+      transcript,
+    });
+
+    return res.data?.data?.analysis;
+  } catch (err) {
+    console.error("Interview analysis error:", err.message);
+    return {
+      strengths: [],
+      improvements: ["Analysis unavailable"],
+      clarity_score: 0,
+    };
+  }
+}
+
+async function getFrameMetrics(imageBase64) {
+  try {
+    const res = await axios.post(
+      `${PYTHON_API_URL}/interview/frame-metrics`,
+      { image_base64: imageBase64 }
+    );
+
+    return res.data?.metrics;
+  } catch {
+    return { emotion: "Neutral", confidence: 0 };
+  }
+}
+
+
+/* ---------------------------------------------------
+   EXPORT
 --------------------------------------------------- */
 
 module.exports = {
-  /* ================= RESUME ================= */
-
-  async processResume(filePath) {
-    return runPythonScript("resume_parser.py", [filePath]);
-  },
-
-  async analyzeResume(text, target_role = null) {
-    const tempFile = path.join(os.tmpdir(), `resume_${Date.now()}.txt`);
-    fs.writeFileSync(tempFile, text);
-
-    try {
-      return await runPythonScript("resume_parser.py", [
-        tempFile,
-        target_role || "",
-      ]);
-    } finally {
-      if (fs.existsSync(tempFile)) {
-        fs.unlinkSync(tempFile);
-      }
-    }
-  },
-
-  /* ================= ROADMAP ================= */
-
-  async generateRoadmap(skills, role) {
-    return runPythonScript("roadmap_generator.py", [
-      JSON.stringify({ skills, role }),
-    ]);
-  },
-
-  async skillGapAnalyzer(resumeSkills, targetRole) {
-    return runPythonScript("skill_gap_analyzer.py", [
-      JSON.stringify({
-        current_skills: resumeSkills,
-        target_role: targetRole,
-      }),
-    ]);
-  },
-
-  async getMarketTrends() {
-    return runPythonScript("market_trends.py");
-  },
-
-  /* ================= INTERVIEW ================= */
-
-  async getInterviewQuestion(role, level, sessionId = null) {
-    return runPythonScript("interview_assistant.py", [
-      JSON.stringify({
-        action: "question",
-        role,
-        level,
-        sessionId,
-      }),
-    ]);
-  },
-
-  async analyzeInterview(transcript, question = "") {
-    return runPythonScript("interview_assistant.py", [
-      JSON.stringify({
-        action: "analyze",
-        transcript,
-        question,
-      }),
-    ]);
-  },
+  processResume,
+  analyzeResume,
+  generateRoadmap,
+  skillGapAnalyzer,
+  getMarketTrends,
+  getInterviewQuestion,
+  analyzeInterview,
+  getFrameMetrics,
 };
