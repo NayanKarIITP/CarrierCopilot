@@ -1143,179 +1143,113 @@
 
 
 
-
-
-
-
-const { spawn } = require("child_process");
-const path = require("path");
-const fs = require("fs");
-const os = require("os");
 const axios = require("axios");
+const FormData = require("form-data");
+const fs = require("fs");
+const path = require("path");
 
-/* ---------------------------------------------------
-   CONFIG
---------------------------------------------------- */
-
-// Windows → python | Linux/Render → python3
-const PYTHON_EXECUTABLE =
-  process.platform === "win32" ? "python" : "python3";
-
-// Python scripts folder
-const PYTHON_DIR = path.join(__dirname, "../python");
-
-// Python FastAPI server (INTERVIEW ENGINE)
 const PYTHON_API_URL =
-  process.env.PYTHON_API_URL || "https://carriercopilot.onrender.com";
+  process.env.PYTHON_API_URL ||
+  "https://carriercopilot.onrender.com";
 
 
-/* ---------------------------------------------------
-   CORE PYTHON RUNNER (SPAWN)
---------------------------------------------------- */
+/* ================== RESUME ================== */
 
-function runPythonScript(scriptName, args = []) {
-  return new Promise((resolve, reject) => {
-    const scriptPath = path.join(PYTHON_DIR, scriptName);
+async function processResume(localFilePath) {
 
-    if (!fs.existsSync(scriptPath)) {
-      return reject(new Error(`Python script not found: ${scriptName}`));
-    }
+  const form = new FormData();
+  form.append("file", fs.createReadStream(localFilePath));
 
-    const py = spawn(PYTHON_EXECUTABLE, [scriptPath, ...args], {
-      env: process.env,
-    });
+  const res = await axios.post(
+    `${PYTHON_API_URL}/resume/parse`,
+    form,
+    { headers: form.getHeaders() }
+  );
 
-    let stdout = "";
-    let stderr = "";
-
-    py.stdout.on("data", (d) => (stdout += d.toString()));
-    py.stderr.on("data", (d) => (stderr += d.toString()));
-
-    py.on("error", reject);
-
-    py.on("close", () => {
-      if (!stdout.trim()) return reject(new Error("Empty Python output"));
-
-      const start = stdout.indexOf("{");
-      const end = stdout.lastIndexOf("}");
-
-      if (start === -1 || end === -1) {
-        return reject(new Error("JSON not found in Python output"));
-      }
-
-      try {
-        resolve(JSON.parse(stdout.slice(start, end + 1)));
-      } catch (err) {
-        reject(err);
-      }
-    });
-  });
+  return res.data;
 }
 
-
-/* ---------------------------------------------------
-   RESUME (SPAWN BASED)
---------------------------------------------------- */
-
-async function processResume(filePath) {
-  return runPythonScript("resume_parser.py", [filePath]);
-}
 
 async function analyzeResume(text, targetRole = null) {
-  const temp = path.join(os.tmpdir(), `resume_${Date.now()}.txt`);
-  fs.writeFileSync(temp, text);
 
-  try {
-    return await runPythonScript("resume_parser.py", [
-      temp,
-      targetRole || "",
-    ]);
-  } finally {
-    if (fs.existsSync(temp)) fs.unlinkSync(temp);
-  }
+  const res = await axios.post(`${PYTHON_API_URL}/resume/analyze`, {
+    text,
+    target_role: targetRole || null
+  });
+
+  return res.data;
 }
 
 
-/* ---------------------------------------------------
-   ROADMAP / TRENDS
---------------------------------------------------- */
+/* ================== ROADMAP ================== */
 
 async function generateRoadmap(skills, role) {
-  return runPythonScript("roadmap_generator.py", [
-    JSON.stringify({ skills, role }),
-  ]);
+
+  const res = await axios.post(`${PYTHON_API_URL}/roadmap/generate`, {
+    skills,
+    role
+  });
+
+  return res.data;
 }
+
 
 async function skillGapAnalyzer(resumeSkills, targetRole) {
-  return runPythonScript("skill_gap_analyzer.py", [
-    JSON.stringify({
-      current_skills: resumeSkills,
-      target_role: targetRole,
-    }),
-  ]);
+
+  const res = await axios.post(`${PYTHON_API_URL}/roadmap/gap`, {
+    current_skills: resumeSkills,
+    target_role: targetRole
+  });
+
+  return res.data;
 }
+
 
 async function getMarketTrends() {
-  return runPythonScript("market_trends.py");
+  const res = await axios.get(`${PYTHON_API_URL}/trends`);
+  return res.data;
 }
 
 
-/* ---------------------------------------------------
-   INTERVIEW ENGINE (HTTP API)
---------------------------------------------------- */
+/* ================== INTERVIEW ================== */
 
 async function getInterviewQuestion(role, level, sessionId = null) {
-  try {
-    let endpoint = "/interview/start";
-    let body = { role, level };
 
-    if (sessionId) {
-      endpoint = "/interview/next-question";
-      body.sessionId = sessionId;
-    }
+  let endpoint = "/interview/start";
+  let body = { role, level };
 
-    const res = await axios.post(`${PYTHON_API_URL}${endpoint}`, body);
-    return res.data?.question || null;
-  } catch (err) {
-    console.error("Interview question error:", err.message);
-    return null;
+  if (sessionId) {
+    endpoint = "/interview/next-question";
+    body.sessionId = sessionId;
   }
+
+  const res = await axios.post(`${PYTHON_API_URL}${endpoint}`, body);
+  return res.data?.question || null;
 }
+
 
 async function analyzeInterview(transcript) {
-  try {
-    const res = await axios.post(`${PYTHON_API_URL}/interview/analyze`, {
-      transcript,
-    });
 
-    return res.data?.data?.analysis;
-  } catch (err) {
-    console.error("Interview analysis error:", err.message);
-    return {
-      strengths: [],
-      improvements: ["Analysis unavailable"],
-      clarity_score: 0,
-    };
-  }
+  const res = await axios.post(`${PYTHON_API_URL}/interview/analyze`, {
+    transcript
+  });
+
+  return res.data?.data?.analysis;
 }
+
 
 async function getFrameMetrics(imageBase64) {
-  try {
-    const res = await axios.post(
-      `${PYTHON_API_URL}/interview/frame-metrics`,
-      { image_base64: imageBase64 }
-    );
 
-    return res.data?.metrics;
-  } catch {
-    return { emotion: "Neutral", confidence: 0 };
-  }
+  const res = await axios.post(
+    `${PYTHON_API_URL}/interview/frame-metrics`,
+    { image_base64: imageBase64 }
+  );
+
+  return res.data?.metrics;
 }
 
 
-/* ---------------------------------------------------
-   EXPORT
---------------------------------------------------- */
+/* ================== EXPORT ================== */
 
 module.exports = {
   processResume,
