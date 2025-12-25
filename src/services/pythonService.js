@@ -15,7 +15,7 @@
 //   async processResume(file, targetRole) {
 //     try {
 //       const form = new FormData();
-
+      
 //       // Handle file whether it's a path (string) or a Multer object (buffer)
 //       if (typeof file === 'string') {
 //           if (fs.existsSync(file)) {
@@ -29,7 +29,7 @@
 //           // Check if it's a mock/test object or invalid
 //           throw new Error("Invalid file format passed to processResume");
 //       }
-
+      
 //       form.append("target_role", targetRole || "General");
 
 //       // Send to Python API
@@ -40,7 +40,7 @@
 
 //     } catch (err) {
 //       console.error("⚠️ Python API failed or file error:", err.message);
-
+      
 //       // Fallback: Return simulated data so the app doesn't crash during demo/dev
 //       return {
 //         success: true,
@@ -61,13 +61,13 @@
 //       try {
 //         const scriptPath = path.join(__dirname, "../scripts/generate_roadmap.py");
 //         const inputData = JSON.stringify({ skills, role });
-
+        
 //         // Ensure python command is correct (python vs python3)
 //         const pythonProcess = spawn("python", [scriptPath, inputData]);
-
+        
 //         let dataString = "";
 //         let errorString = "";
-
+        
 //         pythonProcess.stdout.on("data", (data) => {
 //           dataString += data.toString();
 //         });
@@ -176,19 +176,19 @@
 
 //       try {
 //         const scriptPath = path.join(__dirname, "../scripts/market_trends.py");
-
+        
 //         // 👇 ENSURE THIS PATH IS CORRECT FOR YOUR PC
 //         const pythonExecutable = "C:\\Users\\nkar9\\OneDrive\\Desktop\\Career-Copilot-Backend\\venv\\Scripts\\python.exe";
-
+        
 //         // Debug Log: If you don't see this in your terminal, this file isn't running!
 //         console.log("🚀 ATTEMPTING TO SPAWN PYTHON AT:", pythonExecutable);
 
 //         const pythonProcess = spawn(pythonExecutable, [scriptPath], {
 //           env: { ...process.env } 
 //         });
-
+        
 //         let dataString = "";
-
+        
 //         pythonProcess.stdout.on("data", (data) => {
 //           dataString += data.toString();
 //         });
@@ -248,7 +248,7 @@
 //   async processResume(file, targetRole) {
 //     try {
 //       const form = new FormData();
-
+      
 //       if (typeof file === 'string') {
 //           if (fs.existsSync(file)) {
 //             form.append("file", fs.createReadStream(file));
@@ -260,7 +260,7 @@
 //       } else {
 //           throw new Error("Invalid file format passed to processResume");
 //       }
-
+      
 //       form.append("target_role", targetRole || "General");
 
 //       const res = await axios.post(`${PYTHON_URL}/parse-resume`, form, {
@@ -289,21 +289,21 @@
 //       try {
 //         const scriptPath = path.join(__dirname, "../scripts/generate_roadmap.py");
 //         const inputData = JSON.stringify({ skills, role });
-
+        
 //         console.log(`🚀 Spawning Roadmap AI for role: ${role}`);
 
 //         // Use the specific VENV python executable
 //         const pythonProcess = spawn(PYTHON_EXECUTABLE, [scriptPath], {
 //            env: { ...process.env } // Pass API keys
 //         });
-
+        
 //         // Write input data to the script's stdin
 //         pythonProcess.stdin.write(inputData);
 //         pythonProcess.stdin.end();
 
 //         let dataString = "";
 //         let errorString = "";
-
+        
 //         pythonProcess.stdout.on("data", (data) => {
 //           dataString += data.toString();
 //         });
@@ -417,15 +417,15 @@
 
 //       try {
 //         const scriptPath = path.join(__dirname, "../scripts/market_trends.py");
-
+        
 //         console.log("🚀 ATTEMPTING TO SPAWN PYTHON AT:", PYTHON_EXECUTABLE);
 
 //         const pythonProcess = spawn(PYTHON_EXECUTABLE, [scriptPath], {
 //           env: { ...process.env } 
 //         });
-
+        
 //         let dataString = "";
-
+        
 //         pythonProcess.stdout.on("data", (data) => {
 //           dataString += data.toString();
 //         });
@@ -481,7 +481,7 @@
 //   return new Promise((resolve, reject) => {
 //     try {
 //       const scriptPath = path.join(__dirname, `../python/${scriptName}`);
-
+      
 //       // 1. Verify Script Exists
 //       if (!fs.existsSync(scriptPath)) {
 //           console.error(`❌ Script missing: ${scriptPath}`);
@@ -489,7 +489,7 @@
 //       }
 
 //       console.log(`🐢 Spawning Script: ${scriptName}`);
-
+      
 //       const pythonProcess = spawn(PYTHON_EXECUTABLE, [scriptPath, ...args], {
 //         env: { ...process.env } // Pass API Keys to Python
 //       });
@@ -506,10 +506,10 @@
 //       }
 
 //       let dataString = "";
-
+      
 //       // Capture Standard Output (JSON)
 //       pythonProcess.stdout.on("data", (data) => dataString += data.toString());
-
+      
 //       // Capture Error Output (Logs)
 //       pythonProcess.stderr.on("data", (data) => console.error(`[Python Log]: ${data}`));
 
@@ -557,11 +557,11 @@
 
 //       // Sending request to Python FastAPI (Port 8000)
 //       const res = await axios.post(`${PYTHON_API_URL}${endpoint}`, payload);
-
+      
 //       if (res.data && res.data.question) {
 //         return res.data.question;
 //       }
-
+      
 //       throw new Error("Python backend returned empty question data");
 
 //     } catch (err) {
@@ -612,12 +612,12 @@
 //   // ==================================================
 //   // 🟡 OFFLINE TASKS (Uses Spawn/Scripts)
 //   // ==================================================
-
+  
 //   async processResume(file) {
 //     let filePath = file.path || file;
 //     // Fix for direct string paths or multer objects
 //     if (!fs.existsSync(filePath) && file.path) filePath = file.path;
-
+    
 //     // Resume parsing loads heavy NLP libs, so we spawn it as a separate process
 //     return runPythonScript("resume_parser.py", null, [filePath]); 
 //   },
@@ -1194,32 +1194,21 @@ function runPythonScript(scriptName, args = []) {
     py.on("error", reject);
 
     py.on("close", () => {
-      // Log stderr but DON'T fail if stdout is valid
-      if (stderr.trim()) {
-        console.warn("PYTHON STDERR:", stderr);
-      }
-
-      if (!stdout.trim()) {
-        return reject(new Error("Python returned no JSON output"));
-      }
+      if (!stdout.trim()) return reject(new Error("Empty Python output"));
 
       const start = stdout.indexOf("{");
       const end = stdout.lastIndexOf("}");
 
       if (start === -1 || end === -1) {
-        console.error("RAW PYTHON OUTPUT:", stdout);
         return reject(new Error("JSON not found in Python output"));
       }
 
       try {
-        const parsed = JSON.parse(stdout.slice(start, end + 1));
-        return resolve(parsed);
+        resolve(JSON.parse(stdout.slice(start, end + 1)));
       } catch (err) {
-        console.error("JSON PARSE FAILED:", stdout);
-        return reject(err);
+        reject(err);
       }
     });
-    ;
   });
 }
 
