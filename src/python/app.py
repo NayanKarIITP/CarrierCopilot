@@ -928,10 +928,18 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 
 # ---------- AI MODULES ----------
-from .resume_parser import parse_resume_from_file
-from .roadmap_generator import generate_roadmap
-from .skill_gap_analyzer import analyze_skill_gap
-from .market_trends import get_market_trends
+try:
+    # when running as a package
+    from .resume_parser import parse_resume_from_file
+    from .roadmap_generator import generate_roadmap
+    from .skill_gap_analyzer import analyze_skill_gap
+    from .market_trends import get_market_trends
+except ImportError:
+    # when running as a script (Render fallback)
+    from resume_parser import parse_resume_from_file
+    from roadmap_generator import generate_roadmap
+    from skill_gap_analyzer import analyze_skill_gap
+    from market_trends import get_market_trends
 
 
 # ---------------------------------------------------------
