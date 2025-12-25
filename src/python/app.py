@@ -931,7 +931,7 @@ from dotenv import load_dotenv
 from resume_parser import parse_resume_from_file
 from roadmap_generator import generate_roadmap
 from skill_gap_analyzer import analyze_skill_gap
-from market_trends import get_trends
+from market_trends import get_market_trends
 
 
 # ---------------------------------------------------------
@@ -1116,7 +1116,7 @@ async def gap_analysis(payload: GapRequest):
 # ---------------------------------------------------------
 @app.get("/trends")
 async def trends():
-    result = get_trends()
+    result =  get_market_trends()
     return {"success": True, "data": result}
 
 
