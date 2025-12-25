@@ -928,10 +928,10 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 
 # ---------- AI MODULES ----------
-from resume_parser import parse_resume_from_file
-from roadmap_generator import generate_roadmap
-from skill_gap_analyzer import analyze_skill_gap
-from market_trends import get_market_trends
+from .resume_parser import parse_resume_from_file
+from .roadmap_generator import generate_roadmap
+from .skill_gap_analyzer import analyze_skill_gap
+from .market_trends import get_market_trends
 
 
 # ---------------------------------------------------------
