@@ -87,14 +87,15 @@
 
 
 
+
 import os
 import json
 import google.generativeai as genai
 from typing import List, Union
-# from dotenv import load_dotenv
+from dotenv import load_dotenv
 
-# # Load Environment Variables
-# load_dotenv()
+# Load Environment Variables
+load_dotenv()
 API_KEY = os.getenv("GEMINI_API_KEY")
 
 # Configure Gemini

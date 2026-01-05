@@ -85,8 +85,6 @@
 
 
 #llm_engine.py
-print("✅ llm_engine loaded successfully")
-
 import os
 import re
 import json
@@ -99,8 +97,12 @@ load_dotenv()
 # CONFIGURATION
 # ---------------------------------------------------------
 
+# Try to get key from Environment (Best Practice)
+# If not found, you can fallback to a string, but AVOID committing it.
 API_KEY = os.getenv("GEMINI_API_KEY")
 
+# CORRECTED MODEL NAME: 'gemini-1.5-flash' is the current stable fast model.
+# 'gemini-2.0-flash-exp' is available for experimental use.
 DEFAULT_MODEL = 'gemini-flash-latest' 
 
 AI_AVAILABLE = False
@@ -112,7 +114,7 @@ if API_KEY:
     except Exception as e:
         print(f"⚠️ Configuration Error: {e}")
 else:
-    print("⚠️ Warning: GEMINI_API_KEY not found in environment variables.")
+    print("⚠️ Warning: GOOGLE_API_KEY not found in environment variables.")
 
 # ---------------------------------------------------------
 # HELPER FUNCTIONS

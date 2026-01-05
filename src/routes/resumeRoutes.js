@@ -220,11 +220,9 @@
 
 
 
-//resumeRoutes.js
+
 const express = require("express");
 const router = express.Router();
-const path = require("path");
-const fs = require("fs");
 
 const upload = require("../middleware/uploadMiddleware");
 const auth = require("../middleware/authMiddleware");
@@ -238,71 +236,76 @@ const {
 
 const pythonService = require("../services/pythonService");
 
-// ---------------- FILE SERVE (FIRST) ----------------
-router.get("/file/:filename", (req, res) => {
-  try {
-    const filePath = path.join(
-      __dirname,
-      "../../uploads",
-      req.params.filename
-    );
+// -------------------------------------------------------
+// 🔹 MAIN UPLOAD ROUTE
+// -------------------------------------------------------
+// Ensure your frontend sends form-data with key 'file'
+router.post("/upload", auth, upload.single("file"), uploadResume);
 
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({
-        success: false,
-        message: "Resume file not found",
-      });
-    }
+// -------------------------------------------------------
+// CRUD Routes
+// -------------------------------------------------------
+router.get("/", auth, listUserResumes);           // List all
+router.get("/:id", auth, getResume);              // Get specific
+router.delete("/:id", auth, deleteResume);        // Delete
 
-    res.setHeader("Content-Type", "application/pdf");
-    res.sendFile(filePath);
-  } catch (err) {
-    console.error("Resume file serve error:", err);
-    res.status(500).json({ success: false });
-  }
-});
+// -------------------------------------------------------
+// 🔹 AI Utility Routes (Direct Service Calls)
+// -------------------------------------------------------
 
-// ---------------- UPLOAD ----------------
-router.post("/upload", auth, upload.single("resume"), uploadResume);
-
-// ---------------- AI ROUTES ----------------
+// 1. Text Resume Parsing (Requires the fix above in pythonService)
 router.post("/parse-text", auth, async (req, res) => {
   try {
     const { text, target_role } = req.body;
+
+    if (!text) {
+      return res.status(400).json({ message: "Text is required" });
+    }
+
+    // Now this will work with the update
     const result = await pythonService.analyzeResume(text, target_role);
-    return res.json({ success: true, data: result });
+    return res.json(result);
+
   } catch (err) {
     console.error("Parse-text error:", err);
-    res.status(500).json({ message: "AI text parsing failed" });
+    return res.status(500).json({ message: "AI text parsing failed" });
   }
 });
 
+// 2. Roadmap Generation
 router.post("/roadmap", auth, async (req, res) => {
   try {
     const { skills, role } = req.body;
+
+    if (!skills || !role) {
+      return res.status(400).json({ message: "skills and role required" });
+    }
+
     const result = await pythonService.generateRoadmap(skills, role);
     return res.json(result);
+
   } catch (err) {
-    res.status(500).json({ message: "AI roadmap generation failed" });
+    console.error("Roadmap error:", err);
+    return res.status(500).json({ message: "AI roadmap generation failed" });
   }
 });
 
+// 3. Skill Gap Analyzer
 router.post("/skill-gap", auth, async (req, res) => {
   try {
     const { resumeSkills, targetRole } = req.body;
+
     const result = await pythonService.skillGapAnalyzer(
       resumeSkills,
       targetRole
     );
+
     return res.json(result);
+
   } catch (err) {
-    res.status(500).json({ message: "AI skill gap analysis failed" });
+    console.error("Skill gap error:", err);
+    return res.status(500).json({ message: "AI skill gap analysis failed" });
   }
 });
-
-// ---------------- CRUD (LAST) ----------------
-router.get("/", auth, listUserResumes);
-router.get("/:id", auth, getResume);
-router.delete("/:id", auth, deleteResume);
 
 module.exports = router;

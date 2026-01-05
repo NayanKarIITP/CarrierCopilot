@@ -1143,18 +1143,21 @@
 
 
 
+
+
+
 const axios = require("axios");
 const FormData = require("form-data");
 const fs = require("fs");
 const path = require("path");
 
+
+// Python FastAPI server (INTERVIEW ENGINE)
 const PYTHON_API_URL =
-  process.env.PYTHON_API_URL ||
-  "https://carriercopilot.onrender.com";
+  process.env.PYTHON_SERVICE_URL || "https://carriercopilot.onrender.com";
 
 
 /* ================== RESUME ================== */
-
 async function processResume(localFilePath) {
 
   const form = new FormData();
@@ -1169,7 +1172,6 @@ async function processResume(localFilePath) {
   return res.data;
 }
 
-
 async function analyzeResume(text, targetRole = null) {
 
   const res = await axios.post(`${PYTHON_API_URL}/resume/analyze`, {
@@ -1182,28 +1184,33 @@ async function analyzeResume(text, targetRole = null) {
 
 
 /* ================== ROADMAP ================== */
-
 async function generateRoadmap(skills, role) {
+  try {
+    const res = await axios.post(`${PYTHON_API_URL}/roadmap/generate`, {
+      skills,
+      role
+    });
 
-  const res = await axios.post(`${PYTHON_API_URL}/roadmap/generate`, {
-    skills,
-    role
-  });
+    if (!res.data || !res.data.roadmap) {
+      throw new Error("Python returned empty roadmap");
+    }
 
-  return res.data;
+    return res.data;
+
+  } catch (err) {
+    console.error("❌ PYTHON ROADMAP ERROR:", err?.response?.data || err.message);
+    return null;   // <-- clean fallback trigger
+  }
 }
 
 
 async function skillGapAnalyzer(resumeSkills, targetRole) {
-
   const res = await axios.post(`${PYTHON_API_URL}/roadmap/gap`, {
     current_skills: resumeSkills,
     target_role: targetRole
   });
-
   return res.data;
 }
-
 
 async function getMarketTrends() {
   const res = await axios.get(`${PYTHON_API_URL}/trends`);
@@ -1211,10 +1218,11 @@ async function getMarketTrends() {
 }
 
 
-/* ================== INTERVIEW ================== */
+/* ---------------------------------------------------
+   INTERVIEW ENGINE
+--------------------------------------------------- */
 
 async function getInterviewQuestion(role, level, sessionId = null) {
-
   let endpoint = "/interview/start";
   let body = { role, level };
 
@@ -1222,14 +1230,11 @@ async function getInterviewQuestion(role, level, sessionId = null) {
     endpoint = "/interview/next-question";
     body.sessionId = sessionId;
   }
-
   const res = await axios.post(`${PYTHON_API_URL}${endpoint}`, body);
   return res.data?.question || null;
 }
 
-
 async function analyzeInterview(transcript) {
-
   const res = await axios.post(`${PYTHON_API_URL}/interview/analyze`, {
     transcript
   });
@@ -1237,10 +1242,8 @@ async function analyzeInterview(transcript) {
   return res.data?.data?.analysis;
 }
 
-
 async function getFrameMetrics(imageBase64) {
-
-  const res = await axios.post(
+    const res = await axios.post(
     `${PYTHON_API_URL}/interview/frame-metrics`,
     { image_base64: imageBase64 }
   );
@@ -1250,7 +1253,6 @@ async function getFrameMetrics(imageBase64) {
 
 
 /* ================== EXPORT ================== */
-
 module.exports = {
   processResume,
   analyzeResume,

@@ -756,36 +756,23 @@ def generate_roadmap(skills, target_role):
 # ---------------------------------------------------------
 # 🏁 MAIN EXECUTION
 # ---------------------------------------------------------
-# --- MAIN EXECUTION ---
 if __name__ == "__main__":
     if sys.platform == "win32":
-        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stdout.reconfigure(encoding='utf-8')
 
     try:
-        request = None
-
-        # 1️⃣ Prefer argv (Node spawn)
-        if len(sys.argv) > 1:
-            request = json.loads(sys.argv[1])
-
-        # 2️⃣ Fallback to stdin (optional)
+        input_data = sys.stdin.read()
+        
+        if not input_data:
+            request = {"skills": ["JavaScript"], "role": "Full Stack Developer"}
         else:
-            input_data = sys.stdin.read().strip()
-            if input_data:
-                request = json.loads(input_data)
-
-        # 3️⃣ Final fallback
-        if not request:
-            request = {
-                "skills": ["JavaScript"],
-                "role": "Full Stack Developer"
-            }
+            request = json.loads(input_data)
 
         skills = request.get("skills", [])
         role = request.get("role", "Software Engineer")
 
         result = generate_roadmap(skills, role)
-        print(json.dumps(result))
+        print(json.dumps(result, indent=2))
 
     except Exception as e:
         log_debug(f"Critical Script Error: {e}")
