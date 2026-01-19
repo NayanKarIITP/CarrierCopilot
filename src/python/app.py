@@ -1,423 +1,106 @@
+# # src/python/app.py
 
+# # For production
 # import os
 # import sys
 # import uvicorn
-# from fastapi import FastAPI, HTTPException
-# from fastapi.middleware.cors import CORSMiddleware
-# from pydantic import BaseModel
-# from typing import Dict, Optional
-# import uuid # Imported at top level
-
-# BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# sys.path.append(BASE_DIR)
-# sys.path.append(os.path.join(BASE_DIR, "utils"))
-
-# # Lazy imports to prevent startup crashes if modules are missing
-# try:
-#     from python.interview_assistant import generate_question, analyze_answer
-#     from frame_analyzer import analyze_frame 
-# except ImportError as e:
-#     print(f"⚠️ Import Error: {e}")
-
-# app = FastAPI(title="AI Interview Engine")
-
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["*"],
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
-
-# # MODELS
-# class InterviewStartModel(BaseModel):
-#     role: str
-#     level: str
-
-# class QuestionRequest(BaseModel):
-#     sessionId: str
-#     role: str
-#     level: str
-
-# class InterviewInput(BaseModel):
-#     question: Optional[str] = None
-#     answer: Optional[str] = None
-#     transcript: Optional[str] = None
-
-# class FramePayload(BaseModel):
-#     image_base64: str
-
-# # SESSION STORE
-# SESSIONS = {}  # sessionId -> list of Q objects
-
-# def new_id():
-#     return uuid.uuid4().hex[:10]
-
-# # ✅ FIXED: Normalize function to match Python Script Output
-# def normalize_question(raw):
-#     # The interview_assistant.py returns: { "question": "...", "follow_up": "..." }
-#     # The frontend expects: { "_id": "...", "text": "...", "follow_up": "..." }
-    
-#     return {
-#         "_id": new_id(),
-#         "text": raw.get("question") or raw.get("text", "Could not generate question."),
-#         "follow_up": raw.get("follow_up") or raw.get("followUp", ""),
-#         "difficulty": raw.get("difficulty", "Mid-Level")
-#     }
-
-# @app.get("/")
-# def health():
-#     return {"status": "ok", "engine": "ready"}
-
-# # 1️⃣ START INTERVIEW
-# @app.post("/interview/start")
-# def interview_start(payload: InterviewStartModel):
-#     session_id = new_id()
-#     try:
-#         # Generate raw question from AI
-#         raw = generate_question(payload.role, payload.level)
-        
-#         # Format it for Frontend
-#         q = normalize_question(raw)
-
-#         # Store session
-#         SESSIONS[session_id] = [q]
-
-#         return {
-#             "success": True,
-#             "sessionId": session_id,
-#             "question": q 
-#         }
-#     except Exception as e:
-#         print(f"❌ Start Error: {e}")
-#         raise HTTPException(status_code=500, detail=str(e))
-
-# # 2️⃣ GET NEXT QUESTION
-# @app.post("/interview/next-question")
-# def interview_next(req: QuestionRequest):
-#     if req.sessionId not in SESSIONS:
-#         # Auto-create session if missing (for dev robustness)
-#         SESSIONS[req.sessionId] = []
-
-#     try:
-#         raw = generate_question(req.role, req.level)
-#         q = normalize_question(raw)
-
-#         SESSIONS[req.sessionId].append(q)
-
-#         return {
-#             "success": True,
-#             "question": q
-#         }
-#     except Exception as e:
-#         print(f"❌ Next Q Error: {e}")
-#         raise HTTPException(status_code=500, detail=str(e))
-
-# # 3️⃣ ANALYZE ANSWER
-# @app.post("/interview/analyze")
-# def interview_analyze(payload: InterviewInput):
-#     try:
-#         text = payload.answer or payload.transcript
-        
-#         if not text or len(text) < 2:
-#              # Return dummy success for empty input to prevent frontend crash
-#              return {
-#                 "success": True,
-#                 "data": {
-#                     "analysis": {
-#                         "strengths": ["Listening..."],
-#                         "clarity_score": 0,
-#                         "confidence_estimate": 0
-#                     }
-#                 }
-#              }
-
-#         result = analyze_answer(text)
-
-#         return {
-#             "success": True,
-#             "data": {
-#                 "analysis": result
-#             }
-#         }
-#     except Exception as e:
-#         print(f"❌ Analyze Error: {e}")
-#         raise HTTPException(status_code=500, detail=str(e))
-
-# # 4️⃣ FRAME ANALYSIS
-# @app.post("/interview/frame-metrics")
-# def frame_metrics(payload: FramePayload):
-#     try:
-#         result = analyze_frame(payload.image_base64)
-        
-#         # Ensure result has the structure frontend expects
-#         if not result.get("success"):
-#              return result 
-
-#         m = result.get("metrics", {})
-
-#         return {
-#             "success": True,
-#             "metrics": {
-#                 "emotion": m.get("emotion", "Neutral"),
-#                 # Frontend might expect 'confidence' or 'visual_confidence'
-#                 "visual_confidence": int(m.get("confidence_score", 0.5) * 100),
-#                 "eye_contact": int(m.get("eye_contact", 0)),
-#                 "head_pose": m.get("head_pose", "Center"),
-#                 "angles": m.get("angles", {"yaw":0, "pitch":0, "roll":0})
-#             }
-#         }
-#     except Exception as e:
-#         print(f"❌ Frame Error: {e}")
-#         return {"success": False, "error": str(e)}
-
-# if __name__ == "__main__":
-#     uvicorn.run(
-#         "app:app",
-#         host="0.0.0.0",
-#         port=int(os.environ.get("PYTHON_PORT", 8000)),
-#         reload=True
-#     )
-
-
-
-
-
-# import os
-# import sys
-# import uvicorn
-# from fastapi import FastAPI, HTTPException
-# from fastapi.middleware.cors import CORSMiddleware
-# from pydantic import BaseModel
-# from typing import Dict, Optional
-# import uuid 
-
-# BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# sys.path.append(BASE_DIR)
-# sys.path.append(os.path.join(BASE_DIR, "utils"))
-
-# # ---------------------------------------------------------
-# # ✅ SAFE IMPORTS (Prevents NameError Crashes)
-# # ---------------------------------------------------------
-# try:
-#     from interview_assistant import generate_question, analyze_answer
-# except ImportError as e:
-#     print(f"⚠️ Interview Assistant Import Error: {e}")
-#     # Fallback functions
-#     def generate_question(role, level): return {"question": "System Error: AI module missing.", "follow_up": ""}
-#     def analyze_answer(text): return {"strengths": [], "improvements": [], "clarity_score": 0}
-
-# try:
-#     # Ensure file is named 'frame_analyzer.py' (underscore, NOT dash)
-#     from frame_analyzer import analyze_frame 
-# except ImportError as e:
-#     print(f"⚠️ Frame Analyzer Import Error: {e}")
-#     print("👉 HINT: Did you run 'pip install mediapipe opencv-python'?")
-#     # Fallback function to prevent NameError
-#     def analyze_frame(img): 
-#         return {"success": False, "error": "Visual AI module not loaded. Check server logs."}
-
-# # ---------------------------------------------------------
-# # APP SETUP
-# # ---------------------------------------------------------
-# app = FastAPI(title="AI Interview Engine")
-
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["*"],
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
-
-# # MODELS
-# class InterviewStartModel(BaseModel):
-#     role: str
-#     level: str
-
-# class QuestionRequest(BaseModel):
-#     sessionId: str
-#     role: str
-#     level: str
-
-# class InterviewInput(BaseModel):
-#     question: Optional[str] = None
-#     answer: Optional[str] = None
-#     transcript: Optional[str] = None
-
-# class FramePayload(BaseModel):
-#     image_base64: str
-
-# # SESSION STORE
-# SESSIONS = {} 
-
-# def new_id():
-#     return uuid.uuid4().hex[:10]
-
-# def normalize_question(raw):
-#     return {
-#         "_id": new_id(),
-#         "text": raw.get("question") or raw.get("text", "Could not generate question."),
-#         "follow_up": raw.get("follow_up") or raw.get("followUp", ""),
-#         "difficulty": raw.get("difficulty", "Mid-Level")
-#     }
-
-# @app.get("/")
-# def health():
-#     return {"status": "ok", "engine": "ready"}
-
-# # 1️⃣ START INTERVIEW
-# @app.post("/interview/start")
-# def interview_start(payload: InterviewStartModel):
-#     session_id = new_id()
-#     try:
-#         raw = generate_question(payload.role, payload.level)
-#         q = normalize_question(raw)
-#         SESSIONS[session_id] = [q]
-#         return { "success": True, "sessionId": session_id, "question": q }
-#     except Exception as e:
-#         print(f"❌ Start Error: {e}")
-#         raise HTTPException(status_code=500, detail=str(e))
-
-# # 2️⃣ GET NEXT QUESTION
-# @app.post("/interview/next-question")
-# def interview_next(req: QuestionRequest):
-#     if req.sessionId not in SESSIONS:
-#         SESSIONS[req.sessionId] = []
-#     try:
-#         raw = generate_question(req.role, req.level)
-#         q = normalize_question(raw)
-#         SESSIONS[req.sessionId].append(q)
-#         return { "success": True, "question": q }
-#     except Exception as e:
-#         print(f"❌ Next Q Error: {e}")
-#         raise HTTPException(status_code=500, detail=str(e))
-
-# # 3️⃣ ANALYZE ANSWER
-# @app.post("/interview/analyze")
-# def interview_analyze(payload: InterviewInput):
-#     try:
-#         text = payload.answer or payload.transcript
-#         if not text:
-#              return { "success": True, "data": { "analysis": {} } }
-#         result = analyze_answer(text)
-#         return { "success": True, "data": { "analysis": result } }
-#     except Exception as e:
-#         print(f"❌ Analyze Error: {e}")
-#         raise HTTPException(status_code=500, detail=str(e))
-
-# # 4️⃣ FRAME ANALYSIS
-# @app.post("/interview/frame-metrics")
-# def frame_metrics(payload: FramePayload):
-#     try:
-#         # Calls the imported or fallback function
-#         result = analyze_frame(payload.image_base64)
-        
-#         if not result.get("success"):
-#              return result 
-
-#         m = result.get("metrics", {})
-#         return {
-#             "success": True,
-#             "metrics": {
-#                 "emotion": m.get("emotion", "Neutral"),
-#                 "visual_confidence": int(m.get("confidence_score", 0.5) * 100),
-#                 "eye_contact": int(m.get("eye_contact", 0)),
-#                 "head_pose": m.get("head_pose", "Center"),
-#                 "angles": m.get("angles", {"yaw":0, "pitch":0, "roll":0})
-#             }
-#         }
-#     except Exception as e:
-#         print(f"❌ Frame Error: {e}")
-#         # Return 200 with error details so frontend doesn't crash
-#         return {"success": False, "error": str(e)}
-
-# if __name__ == "__main__":
-#     uvicorn.run("app:app", host="0.0.0.0", port=int(os.environ.get("PYTHON_PORT", 8000)), reload=True)
-
-
-
-
-
-
-# # app.py
-# import os
-# import sys
-# import uuid
 # import logging
-# import tempfile
+# import uuid
 # import shutil
-# from typing import Dict, Optional, List, Any
+# import tempfile
 
-# import uvicorn
-# from fastapi import FastAPI, HTTPException, UploadFile, File
+# # ✅ FIX: These lines were commented out. They are REQUIRED.
+# from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Request
 # from fastapi.middleware.cors import CORSMiddleware
 # from pydantic import BaseModel
-# from dotenv import load_dotenv
+# from typing import Dict, Optional, List, Any
 
 # # ---------------------------------------------------------
 # # 🔧 CONFIG & LOGGING
 # # ---------------------------------------------------------
-# load_dotenv()
-
-# logging.basicConfig(
-#     level=logging.INFO,
-#     format="%(asctime)s - %(levelname)s - %(message)s"
-# )
+# logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 # logger = logging.getLogger(__name__)
 
+# # Ensure current directory is in path so we can import local modules
 # BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# sys.path.append(BASE_DIR)
-# sys.path.append(os.path.join(BASE_DIR, "utils"))
+# if BASE_DIR not in sys.path:
+#     sys.path.append(BASE_DIR)
 
 # # ---------------------------------------------------------
-# # ✅ SAFE IMPORTS
+# # ✅ ROBUST IMPORTS (Handles running from Root or Src)
 # # ---------------------------------------------------------
 
-# # Interview AI
+# # 1. Interview Assistant
 # try:
 #     from interview_assistant import generate_question, analyze_answer
-#     logger.info("✅ Interview Assistant loaded")
-# except Exception as e:
-#     logger.error(f"❌ Interview Assistant error: {e}")
+#     logger.info("✅ Interview Module loaded.")
+# except ImportError:
+#     try:
+#         from src.python.interview_assistant import generate_question, analyze_answer
+#         logger.info("✅ Interview Module loaded (via package).")
+#     except ImportError:
+#         logger.warning("⚠️ Interview Module missing. Using fallbacks.")
+#         def generate_question(role, level, history=None): 
+#             return {"question": "Describe a project you are proud of.", "follow_up": "Why?", "difficulty": level}
+#         def analyze_answer(text, question_context=None): 
+#             return {"strengths": ["Good flow"], "improvements": ["More detail"], "clarity_score": 80}
 
-#     def generate_question(role, level, history=None):
-#         return {"question": "Describe a project you worked on.", "follow_up": ""}
-
-#     def analyze_answer(text):
-#         return {
-#             "strengths": [],
-#             "improvements": [],
-#             "clarity_score": 0,
-#             "confidence_estimate": 0,
-#         }
-
-# # Vision AI
+# # 2. Frame Analyzer
 # try:
-#     from frame_analyzer import analyze_frame
-#     logger.info("✅ Frame Analyzer loaded")
-# except Exception as e:
-#     logger.error(f"❌ Frame Analyzer error: {e}")
+#     from frame_analyzer import analyze_frame 
+#     logger.info("✅ Visual AI loaded.")
+# except ImportError:
+#     try:
+#         from src.python.frame_analyzer import analyze_frame
+#         logger.info("✅ Visual AI loaded (via package).")
+#     except ImportError:
+#         def analyze_frame(img): return {"success": False, "error": "Visual AI missing."}
 
-#     def analyze_frame(img):
-#         return {"success": False, "error": "Vision module unavailable"}
-
-# # Resume Parser (🔥 IMPORTANT)
+# # 3. Roadmap Generator
 # try:
-#     from resume_parser import parse_resume_from_file
-#     logger.info("✅ Resume Parser loaded")
-# except Exception as e:
-#     logger.error(f"❌ Resume Parser error: {e}")
-#     parse_resume_from_file = None
+#     from roadmap_generator import generate_roadmap
+#     logger.info("✅ Roadmap Module loaded.")
+# except ImportError:
+#     try:
+#         from src.python.roadmap_generator import generate_roadmap
+#         logger.info("✅ Roadmap Module loaded (via package).")
+#     except ImportError:
+#         def generate_roadmap(role, skills): return {"roadmap": []}
+
+# # 4. Market Trends
+# try:
+#     from market_trends import get_market_trends
+#     logger.info("✅ Trends Module loaded.")
+# except ImportError:
+#     try:
+#         from src.python.market_trends import get_market_trends
+#         logger.info("✅ Trends Module loaded (via package).")
+#     except ImportError:
+#         def get_market_trends(role=None): return {"trends": ["AI is growing", "Remote work is standard"]}
+
+# # 5. Resume Parser & Gap Analyzer
+# try:
+#     from resume_parser import parse_resume_text, parse_resume_from_file
+#     from skill_gap_analyzer import analyze_skill_gap
+#     logger.info("✅ Resume & Gap Modules loaded.")
+# except ImportError:
+#     try:
+#         from src.python.resume_parser import parse_resume_text, parse_resume_from_file
+#         from src.python.skill_gap_analyzer import analyze_skill_gap
+#         logger.info("✅ Resume & Gap Modules loaded (via package).")
+#     except ImportError:
+#         def parse_resume_text(text): return {"skills": []}
+#         def parse_resume_from_file(path): return {"parsed": {}, "analysis": {}}
+#         def analyze_skill_gap(current, target): return {"missing_skills": ["Python"]}
 
 # # ---------------------------------------------------------
-# # 🚀 FASTAPI APP
+# # 🚀 APP SETUP
 # # ---------------------------------------------------------
-# app = FastAPI(title="AI Career Copilot Engine")
+# app = FastAPI(title="AI Career Copilot 2.0 - Unified Engine")
 
 # app.add_middleware(
 #     CORSMiddleware,
-#     allow_origins=["*"],  # lock this in prod
+#     allow_origins=["*"],
 #     allow_credentials=True,
 #     allow_methods=["*"],
 #     allow_headers=["*"],
@@ -443,469 +126,435 @@
 # class FramePayload(BaseModel):
 #     image_base64: str
 
+# class RoadmapInput(BaseModel):
+#     role: str
+#     skills: List[str]
+
+# class GapInput(BaseModel):
+#     current_skills: List[str]
+#     target_role: str
+
+# class ResumeAnalysisInput(BaseModel):
+#     text: str
+#     target_role: Optional[str] = None
+
+# class ResumeParseRequest(BaseModel):
+#     url: str
+#     target_role: Optional[str] = "fullstack-developer"
+
 # # ---------------------------------------------------------
-# # 🧠 SESSION STORE (IN-MEMORY)
+# # 🧠 SESSION STORAGE (In-Memory)
 # # ---------------------------------------------------------
 # SESSIONS: Dict[str, List[Dict[str, Any]]] = {}
 
-# def new_id():
-#     return uuid.uuid4().hex[:10]
-
-# def clean_base64(b64: str) -> str:
-#     return b64.split(",")[1] if "," in b64 else b64
-
-# # ---------------------------------------------------------
-# # 🩺 HEALTH
-# # ---------------------------------------------------------
-# @app.get("/")
-# def health():
-#     return {
-#         "status": "ok",
-#         "service": "AI Career Copilot",
-#         "resume_parser": bool(parse_resume_from_file)
-#     }
-
-# # ---------------------------------------------------------
-# # 📄 RESUME PARSING (🔥 THIS FIXES EVERYTHING)
-# # ---------------------------------------------------------
-# @app.post("/resume/parse")
-# async def parse_resume(file: UploadFile = File(...)):
-#     if not parse_resume_from_file:
-#         raise HTTPException(
-#             status_code=500,
-#             detail="Resume parser not available"
-#         )
-
-#     suffix = os.path.splitext(file.filename)[1]
-
-#     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-#         shutil.copyfileobj(file.file, tmp)
-#         temp_path = tmp.name
-
-#     try:
-#         result = parse_resume_from_file(temp_path)
-#         return result
-#     except Exception as e:
-#         logger.error(f"Resume parsing failed: {e}")
-#         raise HTTPException(status_code=500, detail=str(e))
-#     finally:
-#         if os.path.exists(temp_path):
-#             os.remove(temp_path)
-
-# # ---------------------------------------------------------
-# # 🎤 INTERVIEW — START
-# # ---------------------------------------------------------
-# @app.post("/interview/start")
-# def interview_start(payload: InterviewStartModel):
-#     session_id = new_id()
-#     history = []
-
-#     raw = generate_question(payload.role, payload.level, history)
-#     question = {
-#         "_id": new_id(),
-#         "text": raw.get("question", "Tell me about yourself."),
-#         "follow_up": raw.get("follow_up", ""),
-#         "difficulty": "Mid-Level"
-#     }
-
-#     SESSIONS[session_id] = [question]
-
-#     return {
-#         "success": True,
-#         "sessionId": session_id,
-#         "question": question
-#     }
-
-# # ---------------------------------------------------------
-# # 🎤 INTERVIEW — NEXT QUESTION
-# # ---------------------------------------------------------
-# @app.post("/interview/next-question")
-# def interview_next(req: QuestionRequest):
-#     history = SESSIONS.get(req.sessionId, [])
-
-#     raw = generate_question(req.role, req.level, history)
-#     question = {
-#         "_id": new_id(),
-#         "text": raw.get("question", "Explain a challenge you faced."),
-#         "follow_up": raw.get("follow_up", "Can you elaborate?"),
-#         "difficulty": "Mid-Level"
-#     }
-
-#     history.append(question)
-#     SESSIONS[req.sessionId] = history
-
-#     return {"success": True, "question": question}
-
-# # ---------------------------------------------------------
-# # 🎤 INTERVIEW — ANALYZE ANSWER
-# # ---------------------------------------------------------
-# @app.post("/interview/analyze")
-# def interview_analyze(payload: InterviewInput):
-#     text = payload.answer or payload.transcript or ""
-
-#     if len(text) < 5:
-#         return {
-#             "success": True,
-#             "data": {
-#                 "analysis": {
-#                     "strengths": [],
-#                     "improvements": ["Answer too short"],
-#                     "clarity_score": 0,
-#                     "confidence_estimate": 0
-#                 }
-#             }
-#         }
-
-#     try:
-#         result = analyze_answer(text)
-#     except Exception as e:
-#         logger.warning(f"AI analysis failed: {e}")
-#         result = {
-#             "strengths": ["Clear intent"],
-#             "improvements": ["Add examples"],
-#             "clarity_score": 70,
-#             "confidence_estimate": 75
-#         }
-
-#     return {"success": True, "data": {"analysis": result}}
-
-# # ---------------------------------------------------------
-# # 👁️ FRAME ANALYSIS
-# # ---------------------------------------------------------
-# @app.post("/interview/frame-metrics")
-# def frame_metrics(payload: FramePayload):
-#     cleaned = clean_base64(payload.image_base64)
-
-#     try:
-#         result = analyze_frame(cleaned)
-#         return result
-#     except Exception as e:
-#         logger.error(f"Frame analysis error: {e}")
-#         return {"success": False, "error": str(e)}
-
-# # ---------------------------------------------------------
-# # 🚀 RUN SERVER
-# # ---------------------------------------------------------
-# if __name__ == "__main__":
-#     port = int(os.environ.get("PYTHON_PORT", 10000))
-#     logger.info(f"🚀 Starting FastAPI on port {port}")
-#     uvicorn.run("app:app", host="0.0.0.0", port=port)
-
-
-
-
-
-
-
-
-
-# # app.py
-# import os
-# import sys
-# import uuid
-# import logging
-# import tempfile
-# import shutil
-# from typing import Dict, Optional, List, Any
-
-# import uvicorn
-# from fastapi import FastAPI, HTTPException, UploadFile, File
-# from fastapi.middleware.cors import CORSMiddleware
-# from pydantic import BaseModel
-# from dotenv import load_dotenv
-
-# # ---------------------------------------------------------
-# # 🔧 CONFIG & LOGGING
-# # ---------------------------------------------------------
-# load_dotenv()
-
-# logging.basicConfig(
-#     level=logging.INFO,
-#     format="%(asctime)s - %(levelname)s - %(message)s"
-# )
-# logger = logging.getLogger(__name__)
-
-# BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# sys.path.append(BASE_DIR)
-# sys.path.append(os.path.join(BASE_DIR, "utils"))
-
-# # ---------------------------------------------------------
-# # ✅ SAFE IMPORTS
-# # ---------------------------------------------------------
-
-# # Interview AI
-# try:
-#     from interview_assistant import generate_question, analyze_answer
-#     logger.info("✅ Interview Assistant loaded")
-# except Exception as e:
-#     logger.error(f"❌ Interview Assistant error: {e}")
-
-#     def generate_question(role, level, history=None):
-#         return {"question": "Describe a project you worked on.", "follow_up": ""}
-
-#     def analyze_answer(text):
-#         return {
-#             "strengths": [],
-#             "improvements": [],
-#             "clarity_score": 0,
-#             "confidence_estimate": 0,
-#         }
-
-# # Vision AI
-# try:
-#     from frame_analyzer import analyze_frame
-#     logger.info("✅ Frame Analyzer loaded")
-# except Exception as e:
-#     logger.error(f"❌ Frame Analyzer error: {e}")
-#     logger.warning("👉 HINT: Did you run 'pip install mediapipe opencv-python'?")
-#     def analyze_frame(img):
-#         return {"success": False, "error":"Visual AI module not loaded."}
-
-# # Resume Parser (🔥 IMPORTANT)
-# try:
-#     from resume_parser import parse_resume_from_file
-#     logger.info("✅ Resume Parser loaded")
-# except Exception as e:
-#     logger.error(f"❌ Resume Parser error: {e}")
-#     parse_resume_from_file = None
-
-# # ---------------------------------------------------------
-# # 🚀 FASTAPI APP
-# # ---------------------------------------------------------
-# app = FastAPI(title="AI Interview Engine - Career Copilot")
-
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["*"], # Change this to specific frontend URL in production
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
-# # ---------------------------------------------------------
-# # 📦 DATA MODELS
-# # ---------------------------------------------------------
-# class InterviewStartModel(BaseModel):
-#     role: str
-#     level: str
-
-# class QuestionRequest(BaseModel):
-#     sessionId: str
-#     role: str
-#     level: str
-
-# class InterviewInput(BaseModel):
-#     question: Optional[str] = None
-#     answer: Optional[str] = None
-#     transcript: Optional[str] = None
-
-# class FramePayload(BaseModel):
-#     image_base64: str
-
-
-# # ---------------------------------------------------------
-# # 🧠 SESSION STORE (IN-MEMORY)
-# # ---------------------------------------------------------
-# SESSIONS: Dict[str, List[Dict[str, Any]]] = {}
-
-# def new_id():
-#     return uuid.uuid4().hex[:10]
+# def new_id(): return uuid.uuid4().hex[:10]
 
 # def clean_base64(b64_string: str) -> str:
-#     """Removes the 'data:image/xyz;base64,' header if present."""
-#     if "," in b64_string:
-#         return b64_string.split(",")[1]
+#     if "," in b64_string: return b64_string.split(",")[1]
 #     return b64_string
 
-# def normalize_question(raw):
-#     return {
-#         "_id": new_id(),
-#         "text": raw.get("question") or raw.get("text", "Could not generate question."),
-#         "follow_up": raw.get("follow_up") or raw.get("followUp", ""),
-#         "difficulty": raw.get("difficulty", "Mid-Level")
-#     }
+# # ---------------------------------------------------------
+# # 🔗 ENDPOINTS
+# # ---------------------------------------------------------
 
-# # ---------------------------------------------------------
-# # 🩺 HEALTH
-# # ---------------------------------------------------------
 # @app.get("/")
 # def health():
-#     return {
-#         "status": "ok",
-#         "service": "AI Career Copilot",
-#         "resume_parser": bool(parse_resume_from_file)
-#     }
+#     return {"status": "ok", "engine": "Python AI Engine Running"}
 
-# # ---------------------------------------------------------
-# # 📄 RESUME PARSING (🔥 THIS FIXES EVERYTHING)
-# # ---------------------------------------------------------
-# @app.post("/resume/parse")
-# async def parse_resume(file: UploadFile = File(...)):
-#     if not parse_resume_from_file:
-#         raise HTTPException(
-#             status_code=500,
-#             detail="Resume parser not available"
-#         )
-
-#     suffix = os.path.splitext(file.filename)[1]
-
-#     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-#         shutil.copyfileobj(file.file, tmp)
-#         temp_path = tmp.name
-
-#     try:
-#         result = parse_resume_from_file(temp_path)
-#         return result
-#     except Exception as e:
-#         logger.error(f"Resume parsing failed: {e}")
-#         raise HTTPException(status_code=500, detail=str(e))
-#     finally:
-#         if os.path.exists(temp_path):
-#             os.remove(temp_path)
-
-
-# # 1️⃣ START INTERVIEW
+# # ==========================================
+# # 1️⃣ INTERVIEW ROUTES
+# # ==========================================
 # @app.post("/interview/start")
 # def interview_start(payload: InterviewStartModel):
 #     session_id = new_id()
 #     try:
-#         # Pass empty history for the first question
 #         raw = generate_question(payload.role, payload.level, history=[])
-#         q = normalize_question(raw)
+#         q = {
+#             "_id": new_id(),
+#             "text": raw.get("question", "Tell me about yourself."),
+#             "follow_up": raw.get("follow_up", ""),
+#             "difficulty": payload.level
+#         }
 #         SESSIONS[session_id] = [q]
-#         logger.info(f"Started session {session_id} for {payload.role}")
 #         return { "success": True, "sessionId": session_id, "question": q }
 #     except Exception as e:
 #         logger.error(f"Start Error: {e}")
-#         raise HTTPException(status_code=500, detail=str(e))
-
-# # 2️⃣ GET NEXT QUESTION
-# @app.post("/interview/next-question")
-# def interview_next(req: QuestionRequest):
-#     if req.sessionId not in SESSIONS:
-#         SESSIONS[req.sessionId] = []
-    
-#     try:
-#         history = SESSIONS[req.sessionId]
-        
-#         # 1. Get Question (AI or Fallback)
-#         raw = generate_question(req.role, req.level, history=history)
-        
-#         # 2. Safety Check: Did we get a real question?
-#         question_text = raw.get("question") or raw.get("text")
-        
-#         # If AI failed and returned nothing, FORCE a backup here
-#         if not question_text or question_text == "Could not generate question.":
-#             question_text = "Describe a challenging project you've worked on recently."
-#             raw["follow_up"] = "What was the hardest technical decision you made?"
-
-#         # 3. Create the Question Object manually (Bypassing normalize_question to be safe)
-#         q = {
-#             "_id": new_id(),
-#             "text": question_text,
-#             "follow_up": raw.get("follow_up") or raw.get("followUp", "Can you elaborate?"),
-#             "difficulty": raw.get("difficulty", "Mid-Level")
-#         }
-
-#         SESSIONS[req.sessionId].append(q)
-#         return { "success": True, "question": q }
-
-#     except Exception as e:
-#         logger.error(f"Next Q Error: {e}")
-#         # FINAL SAFETY NET
-#         return { 
-#             "success": True, 
-#             "question": {
-#                 "_id": new_id(),
-#                 "text": "Tell me about a time you had a conflict with a team member.",
-#                 "follow_up": "How did you resolve it?",
-#                 "difficulty": "Behavioral"
-#             }
-#         }
-# # 3️⃣ ANALYZE ANSWER (ROBUST VERSION)
-# @app.post("/interview/analyze")
-# def interview_analyze(payload: InterviewInput):
-#     try:
-#         text = payload.answer or payload.transcript
-        
-#         # 1. Handle Empty Input
-#         if not text or len(text) < 5:
-#              return { 
-#                  "success": True, 
-#                  "data": { 
-#                      "analysis": {
-#                         "strengths": ["N/A"],
-#                         "improvements": ["Answer too short to analyze."],
-#                         "clarity_score": 0,
-#                         "confidence_estimate": 0
-#                      } 
-#                  } 
-#              }
-        
-#         # 2. Try Real AI Analysis
-#         try:
-#             result = analyze_answer(text)
-            
-#             # Check if result is valid (has keys we need)
-#             if not result or "clarity_score" not in result:
-#                 raise Exception("Invalid AI Response")
-                
-#         except Exception as ai_error:
-#             logger.warning(f"⚠️ AI Analysis Failed ({ai_error}). Using Fallback.")
-#             # 3. FALLBACK: If AI fails, return generic positive feedback
-#             # This keeps the app running smoothly.
-#             result = {
-#                 "strengths": ["Clear communication", "Relevant keywords used", "Good confidence"],
-#                 "improvements": ["Try to provide more specific examples", "Elaborate on technical details"],
-#                 "clarity_score": 75,
-#                 "confidence_estimate": 80,
-#                 "filler_words_count": {}
-#             }
-
-#         return { "success": True, "data": { "analysis": result } }
-
-#     except Exception as e:
-#         logger.error(f"Analyze Critical Error: {e}")
-#         # Final safety net to prevent 500 Crash
-#         return { "success": False, "error": "Server error, but interview can continue." }
-# # 4️⃣ FRAME ANALYSIS (Visual Metrics)
-# @app.post("/interview/frame-metrics")
-# def frame_metrics(payload: FramePayload):
-#     try:
-#         # 1. Clean the base64 string
-#         cleaned_image = clean_base64(payload.image_base64)
-        
-#         # 2. Analyze
-#         result = analyze_frame(cleaned_image)
-        
-#         if not result.get("success"):
-#              return result 
-
-#         m = result.get("metrics", {})
-        
-#         # 3. Format Response
-#         return {
-#             "success": True,
-#             "metrics": {
-#                 "emotion": m.get("emotion", "Neutral"),
-#                 "visual_confidence": int(m.get("confidence_score", 0.5) * 100),
-#                 "eye_contact": int(m.get("eye_contact", 0)),
-#                 "head_pose": m.get("head_pose", "Center"),
-#                 "angles": m.get("angles", {"yaw":0, "pitch":0, "roll":0})
-#             }
-#         }
-#     except Exception as e:
-#         logger.error(f"Frame Error: {e}")
-#         # Return 200 with error details so frontend doesn't crash completely
 #         return {"success": False, "error": str(e)}
 
-# # ---------------------------------------------------------
-# # 🚀 RUN SERVER
-# # ---------------------------------------------------------
-# if __name__ == "__main__":
-#     port = int(os.environ.get("PYTHON_PORT", 10000))
-#     logger.info(f"🚀 Starting FastAPI on port {port}")
-#     uvicorn.run("app:app", host="0.0.0.0", port=port)
+# @app.post("/interview/next-question")
+# def interview_next(req: QuestionRequest):
+#     if req.sessionId not in SESSIONS: SESSIONS[req.sessionId] = []
+#     try:
+#         raw = generate_question(req.role, req.level, history=SESSIONS[req.sessionId])
+#         q = {
+#             "_id": new_id(),
+#             "text": raw.get("question", "Describe a challenge."),
+#             "follow_up": raw.get("follow_up", ""),
+#             "difficulty": req.level
+#         }
+#         SESSIONS[req.sessionId].append(q)
+#         return { "success": True, "question": q }
+#     except Exception as e:
+#         logger.error(f"Next Error: {e}")
+#         return {"success": False, "error": str(e)}
 
+# @app.post("/interview/analyze")
+# def interview_analyze(payload: InterviewInput):
+#     text = payload.answer or payload.transcript
+#     if not text or len(text) < 5:
+#         return { "success": True, "data": { "analysis": { "strengths": [], "clarity_score": 0 } } }
+    
+#     result = analyze_answer(text)
+#     return { "success": True, "data": { "analysis": result } }
+
+# @app.post("/interview/frame-metrics")
+# def frame_metrics(payload: FramePayload):
+#     img = clean_base64(payload.image_base64)
+#     result = analyze_frame(img)
+#     return result if "success" in result else {"success": True, "metrics": result}
+
+# # ==========================================
+# # 2️⃣ ROADMAP ROUTES
+# # ==========================================
+# @app.post("/roadmap/generate")
+# def api_generate_roadmap(payload: RoadmapInput):
+#     logger.info(f"🛣️ Generating roadmap for {payload.role}")
+#     result = generate_roadmap(payload.role, payload.skills)
+#     return result
+
+# @app.post("/roadmap/gap")
+# def api_skill_gap(payload: GapInput):
+#     result = analyze_skill_gap(payload.current_skills, payload.target_role)
+#     return result
+
+# # ==========================================
+# # 3️⃣ TRENDS ROUTES
+# # ==========================================
+# @app.get("/trends")
+# def api_trends(role: Optional[str] = "Software Engineer"):
+#     result = get_market_trends(role)
+#     return result
+
+# # ==========================================
+# # 4️⃣ RESUME ROUTES (GEMINI NATIVE)
+# # ==========================================
+# @app.post("/resume/parse")
+# def parse_resume(payload: ResumeParseRequest):
+#     try:
+#         logger.info(f"📄 Parsing Resume URL: {payload.url}")
+
+#         # 1. Call the new Gemini Native Parser
+#         # The parser now handles download and analysis
+#         result = parse_resume_from_file(payload.url)
+
+#         if not result.get("success"):
+#             logger.error(f"Parser failed: {result.get('error')}")
+#             return result 
+
+#         # 2. Extract the flat data object
+#         ai_data = result.get("data", {})
+
+#         # 3. Construct the Response
+#         response_payload = {
+#             "success": True,
+#             "score": ai_data.get("resume_score", 0),
+#             "feedback": ai_data.get("feedback", []),
+#             "strengths": ai_data.get("strengths", []),
+#             "weaknesses": ai_data.get("weaknesses", []),
+#             "data": ai_data, 
+#             "skills": ai_data.get("skills", []),
+#             "experience": ai_data.get("experience", []),
+#             "education": ai_data.get("education", []),
+#             "text": "Extracted via Gemini Vision" 
+#         }
+
+#         return response_payload
+
+#     except Exception as e:
+#         logger.error(f"Route Error: {e}")
+#         return {"success": False, "error": str(e)}
+    
+# # ==========================================
+# # 🚀 MAIN ENTRY POINT
+# # ==========================================
+# if __name__ == "__main__":
+#     port = int(os.environ.get("PYTHON_PORT", 8000))
+#     logger.info(f"🔥 Python Engine starting on Port {port}...")
+#     uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)
+
+
+
+
+
+
+
+
+
+# # #For production
+# # #app.py
+# # import os
+# # import sys
+# # import uvicorn
+# # import logging
+# # import uuid
+# # import shutil
+# # import tempfile
+# # from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+# # from fastapi.middleware.cors import CORSMiddleware
+# # from pydantic import BaseModel
+# # from typing import Dict, Optional, List, Any
+
+# # # ---------------------------------------------------------
+# # # 🔧 CONFIG & LOGGING
+# # # ---------------------------------------------------------
+# # logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+# # logger = logging.getLogger(__name__)
+
+# # BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# # sys.path.append(BASE_DIR)
+# # sys.path.append(os.path.join(BASE_DIR, "utils"))
+
+# # # ---------------------------------------------------------
+# # # ✅ SAFE IMPORTS
+# # # ---------------------------------------------------------
+# # # 1. Interview Assistant
+# # try:
+# #     from interview_assistant import generate_question, analyze_answer
+# #     logger.info("✅ Interview Module loaded.")
+# # except ImportError:
+# #     logger.warning("⚠️ Interview Module missing. Using fallbacks.")
+# #     def generate_question(role, level, history=None): 
+# #         return {"question": "Describe a project you are proud of.", "follow_up": "Why?"}
+# #     def analyze_answer(text): 
+# #         return {"strengths": ["Good flow"], "improvements": ["More detail"], "clarity_score": 80}
+
+# # # 2. Frame Analyzer
+# # try:
+# #     from frame_analyzer import analyze_frame 
+# #     logger.info("✅ Visual AI loaded.")
+# # except ImportError:
+# #     def analyze_frame(img): return {"success": False, "error": "Visual AI missing."}
+
+# # # 3. Roadmap Generator
+# # try:
+# #     from roadmap_generator import generate_roadmap
+# #     logger.info("✅ Roadmap Module loaded.")
+# # except ImportError:
+# #     def generate_roadmap(role, skills): return {"roadmap": []}
+
+# # # 4. Market Trends
+# # try:
+# #     from market_trends import get_market_trends
+# #     logger.info("✅ Trends Module loaded.")
+# # except ImportError:
+# #     def get_market_trends(role=None): return {"trends": ["AI is growing", "Remote work is standard"]}
+
+# # # 5. Resume Parser & Gap Analyzer
+# # try:
+# #     from resume_parser import parse_resume_text, parse_resume_from_file
+# #     from skill_gap_analyzer import analyze_skill_gap
+# #     logger.info("✅ Resume & Gap Modules loaded.")
+# # except ImportError:
+# #     def parse_resume_text(text): return {"skills": []}
+# #     def parse_resume_from_file(path): return {"parsed": {}, "analysis": {}}
+# #     def analyze_skill_gap(current, target): return {"missing_skills": ["Python"]}
+
+# # # ---------------------------------------------------------
+# # # 🚀 APP SETUP
+# # # ---------------------------------------------------------
+# # app = FastAPI(title="AI Career Copilot 2.0 - Unified Engine")
+
+# # app.add_middleware(
+# #     CORSMiddleware,
+# #     allow_origins=["*"],
+# #     allow_credentials=True,
+# #     allow_methods=["*"],
+# #     allow_headers=["*"],
+# # )
+
+# # # ---------------------------------------------------------
+# # # 📦 DATA MODELS
+# # # ---------------------------------------------------------
+# # class InterviewStartModel(BaseModel):
+# #     role: str
+# #     level: str
+
+# # class QuestionRequest(BaseModel):
+# #     sessionId: str
+# #     role: str
+# #     level: str
+
+# # class InterviewInput(BaseModel):
+# #     question: Optional[str] = None
+# #     answer: Optional[str] = None
+# #     transcript: Optional[str] = None
+
+# # class FramePayload(BaseModel):
+# #     image_base64: str
+
+# # class RoadmapInput(BaseModel):
+# #     role: str
+# #     skills: List[str]
+
+# # class GapInput(BaseModel):
+# #     current_skills: List[str]
+# #     target_role: str
+
+# # class ResumeAnalysisInput(BaseModel):
+# #     text: str
+# #     target_role: Optional[str] = None
+
+# # # ✅ NEW: Model for URL-based Resume Parsing
+# # class ResumeParseRequest(BaseModel):
+# #     url: str
+# #     target_role: Optional[str] = "fullstack-developer"
+
+# # # ---------------------------------------------------------
+# # # 🧠 SESSION STORAGE (In-Memory)
+# # # ---------------------------------------------------------
+# # SESSIONS: Dict[str, List[Dict[str, Any]]] = {}
+
+# # def new_id(): return uuid.uuid4().hex[:10]
+
+# # def clean_base64(b64_string: str) -> str:
+# #     if "," in b64_string: return b64_string.split(",")[1]
+# #     return b64_string
+
+# # # ---------------------------------------------------------
+# # # 🔗 ENDPOINTS
+# # # ---------------------------------------------------------
+
+# # @app.get("/")
+# # def health():
+# #     return {"status": "ok", "engine": "Python AI Engine Running"}
+
+# # # ==========================================
+# # # 1️⃣ INTERVIEW ROUTES
+# # # ==========================================
+# # @app.post("/interview/start")
+# # def interview_start(payload: InterviewStartModel):
+# #     session_id = new_id()
+# #     try:
+# #         raw = generate_question(payload.role, payload.level, history=[])
+# #         q = {
+# #             "_id": new_id(),
+# #             "text": raw.get("question", "Tell me about yourself."),
+# #             "follow_up": raw.get("follow_up", ""),
+# #             "difficulty": payload.level
+# #         }
+# #         SESSIONS[session_id] = [q]
+# #         return { "success": True, "sessionId": session_id, "question": q }
+# #     except Exception as e:
+# #         logger.error(f"Start Error: {e}")
+# #         return {"success": False, "error": str(e)}
+
+# # @app.post("/interview/next-question")
+# # def interview_next(req: QuestionRequest):
+# #     if req.sessionId not in SESSIONS: SESSIONS[req.sessionId] = []
+# #     try:
+# #         raw = generate_question(req.role, req.level, history=SESSIONS[req.sessionId])
+# #         q = {
+# #             "_id": new_id(),
+# #             "text": raw.get("question", "Describe a challenge."),
+# #             "follow_up": raw.get("follow_up", ""),
+# #             "difficulty": req.level
+# #         }
+# #         SESSIONS[req.sessionId].append(q)
+# #         return { "success": True, "question": q }
+# #     except Exception as e:
+# #         logger.error(f"Next Error: {e}")
+# #         return {"success": False, "error": str(e)}
+
+# # @app.post("/interview/analyze")
+# # def interview_analyze(payload: InterviewInput):
+# #     text = payload.answer or payload.transcript
+# #     if not text or len(text) < 5:
+# #         return { "success": True, "data": { "analysis": { "strengths": [], "clarity_score": 0 } } }
+    
+# #     result = analyze_answer(text)
+# #     return { "success": True, "data": { "analysis": result } }
+
+# # @app.post("/interview/frame-metrics")
+# # def frame_metrics(payload: FramePayload):
+# #     img = clean_base64(payload.image_base64)
+# #     result = analyze_frame(img)
+# #     return result if "success" in result else {"success": True, "metrics": result}
+
+# # # ==========================================
+# # # 2️⃣ ROADMAP ROUTES
+# # # ==========================================
+# # @app.post("/roadmap/generate")
+# # def api_generate_roadmap(payload: RoadmapInput):
+# #     logger.info(f"🛣️ Generating roadmap for {payload.role}")
+# #     result = generate_roadmap(payload.role, payload.skills)
+# #     return result
+
+# # @app.post("/roadmap/gap")
+# # def api_skill_gap(payload: GapInput):
+# #     result = analyze_skill_gap(payload.current_skills, payload.target_role)
+# #     return result
+
+# # # ==========================================
+# # # 3️⃣ TRENDS ROUTES
+# # # ==========================================
+# # @app.get("/trends")
+# # def api_trends(role: Optional[str] = "Software Engineer"):
+# #     result = get_market_trends(role)
+# #     return result
+
+# # # ==========================================
+# # # 4️⃣ RESUME ROUTES (✅ UPDATED FOR GEMINI NATIVE)
+# # # ==========================================
+# # @app.post("/resume/parse")
+# # def parse_resume(payload: ResumeParseRequest):
+# #     # Safety Check
+# #     if 'parse_resume_from_file' not in globals():
+# #         raise HTTPException(status_code=500, detail="Parser not loaded")
+
+# #     try:
+# #         logger.info(f"📄 Parsing Resume URL: {payload.url}")
+
+# #         # 1. Call the new Gemini Native Parser
+# #         result = parse_resume_from_file(payload.url)
+
+# #         if not result.get("success"):
+# #             logger.error(f"Parser failed: {result.get('error')}")
+# #             return result 
+
+# #         # 2. Extract the flat data object
+# #         ai_data = result.get("data", {})
+
+# #         # 3. Construct the Response (Flattened for Frontend)
+# #         response_payload = {
+# #             "success": True,
+# #             "score": ai_data.get("resume_score", 0),
+# #             "feedback": ai_data.get("feedback", []),
+# #             "strengths": ai_data.get("strengths", []),
+# #             "weaknesses": ai_data.get("weaknesses", []),
+            
+# #             # Pass the WHOLE object as 'data' so page.tsx finds skills/experience there
+# #             "data": ai_data, 
+            
+# #             # Legacy support fields (populating root level too, just in case)
+# #             "skills": ai_data.get("skills", []),
+# #             "experience": ai_data.get("experience", []),
+# #             "education": ai_data.get("education", []),
+# #             "text": "Extracted via Gemini Vision" 
+# #         }
+
+# #         return response_payload
+
+# #     except Exception as e:
+# #         logger.error(f"Route Error: {e}")
+# #         return {"success": False, "error": str(e)}
+    
+# # # ==========================================
+# # # 🚀 MAIN ENTRY POINT
+# # # ==========================================
+# # if __name__ == "__main__":
+# #     port = int(os.environ.get("PYTHON_PORT", 8000))
+# #     logger.info(f"🔥 Python Engine starting on Port {port}...")
+# #     uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)
 
 
 
@@ -914,14 +563,15 @@
 
 
 # src/python/app.py
+
 import os
 import sys
 import uvicorn
 import logging
 import uuid
-import shutil
-import tempfile
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+import json
+import re
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Dict, Optional, List, Any
@@ -932,56 +582,72 @@ from typing import Dict, Optional, List, Any
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+# Ensure current directory is in path
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(BASE_DIR)
-sys.path.append(os.path.join(BASE_DIR, "utils"))
+if BASE_DIR not in sys.path:
+    sys.path.append(BASE_DIR)
 
 # ---------------------------------------------------------
-# ✅ SAFE IMPORTS (Prevents Crash on Missing Modules)
+# 🛠️ HELPER: ROBUST JSON PARSER (The Fix for Gemini Errors)
 # ---------------------------------------------------------
-# 1. Interview Assistant
+def clean_and_parse_json(ai_text):
+    """
+    Attempts to fix common AI JSON syntax errors before parsing.
+    """
+    try:
+        # 1. Try direct parse
+        return json.loads(ai_text)
+    except json.JSONDecodeError:
+        try:
+            # 2. Extract JSON from Markdown code blocks
+            match = re.search(r"```json\n(.*?)```", ai_text, re.DOTALL)
+            text_to_parse = match.group(1) if match else ai_text
+            
+            # 3. Fix common trailing commas (e.g., "item",] -> "item"])
+            text_to_parse = re.sub(r",\s*([\]}])", r"\1", text_to_parse)
+            
+            return json.loads(text_to_parse)
+        except Exception:
+            logger.error(f"❌ Failed to parse AI JSON. Raw text start: {ai_text[:100]}...")
+            return None
+
+# ---------------------------------------------------------
+# ✅ MODULE IMPORTS (With Fallbacks)
+# ---------------------------------------------------------
 try:
     from interview_assistant import generate_question, analyze_answer
     logger.info("✅ Interview Module loaded.")
 except ImportError:
-    logger.warning("⚠️ Interview Module missing. Using fallbacks.")
-    def generate_question(role, level, history=None): 
-        return {"question": "Describe a project you are proud of.", "follow_up": "Why?"}
-    def analyze_answer(text): 
-        return {"strengths": ["Good flow"], "improvements": ["More detail"], "clarity_score": 80}
+    logger.warning("⚠️ Interview Module missing.")
+    def generate_question(role, level, history=None): return {"question": "Describe a project.", "difficulty": level}
+    def analyze_answer(text, question_context=None): return {"strengths": [], "clarity_score": 0}
 
-# 2. Frame Analyzer
 try:
     from frame_analyzer import analyze_frame 
     logger.info("✅ Visual AI loaded.")
 except ImportError:
     def analyze_frame(img): return {"success": False, "error": "Visual AI missing."}
 
-# 3. Roadmap Generator
 try:
     from roadmap_generator import generate_roadmap
     logger.info("✅ Roadmap Module loaded.")
 except ImportError:
     def generate_roadmap(role, skills): return {"roadmap": []}
 
-# 4. Market Trends
 try:
     from market_trends import get_market_trends
     logger.info("✅ Trends Module loaded.")
 except ImportError:
-    def get_market_trends(role=None): return {"trends": ["AI is growing", "Remote work is standard"]}
+    def get_market_trends(role=None): return {"trends": []}
 
-# 5. Resume Parser & Gap Analyzer (✅ FIXED)
 try:
-    # We must import 'parse_resume_from_file' explicitly!
-    from resume_parser import parse_resume_text, parse_resume_from_file
+    from resume_parser import parse_resume_from_file
     from skill_gap_analyzer import analyze_skill_gap
     logger.info("✅ Resume & Gap Modules loaded.")
 except ImportError:
-    # If imports fail, we must define Mock functions to prevent crashing
-    def parse_resume_text(text): return {"skills": []}
-    def parse_resume_from_file(path): return {"parsed": {}, "analysis": {}} # ✅ Added this
-    def analyze_skill_gap(current, target): return {"missing_skills": ["Python"]}
+    def parse_resume_from_file(path): return {"success": False, "error": "Parser missing"}
+    def analyze_skill_gap(current, target): return {"missing_skills": []}
+
 
 # ---------------------------------------------------------
 # 🚀 APP SETUP
@@ -1024,20 +690,16 @@ class GapInput(BaseModel):
     current_skills: List[str]
     target_role: str
 
-class ResumeAnalysisInput(BaseModel):
-    text: str
-    target_role: Optional[str] = None
+class ResumeParseRequest(BaseModel):
+    url: str
+    target_role: Optional[str] = "fullstack-developer"
 
 # ---------------------------------------------------------
-# 🧠 SESSION STORAGE (In-Memory)
+# 🧠 SESSION STORAGE
 # ---------------------------------------------------------
 SESSIONS: Dict[str, List[Dict[str, Any]]] = {}
 
 def new_id(): return uuid.uuid4().hex[:10]
-
-def clean_base64(b64_string: str) -> str:
-    if "," in b64_string: return b64_string.split(",")[1]
-    return b64_string
 
 # ---------------------------------------------------------
 # 🔗 ENDPOINTS
@@ -1047,144 +709,111 @@ def clean_base64(b64_string: str) -> str:
 def health():
     return {"status": "ok", "engine": "Python AI Engine Running"}
 
-# ==========================================
-# 1️⃣ INTERVIEW ROUTES
-# ==========================================
+# --- Interview Routes ---
 @app.post("/interview/start")
 def interview_start(payload: InterviewStartModel):
     session_id = new_id()
-    try:
-        raw = generate_question(payload.role, payload.level, history=[])
-        q = {
-            "_id": new_id(),
-            "text": raw.get("question", "Tell me about yourself."),
-            "follow_up": raw.get("follow_up", ""),
-            "difficulty": payload.level
-        }
-        SESSIONS[session_id] = [q]
-        return { "success": True, "sessionId": session_id, "question": q }
-    except Exception as e:
-        logger.error(f"Start Error: {e}")
-        return {"success": False, "error": str(e)}
+    raw = generate_question(payload.role, payload.level, history=[])
+    q = {
+        "_id": new_id(),
+        "text": raw.get("question", "Tell me about yourself."),
+        "follow_up": raw.get("follow_up", ""),
+        "difficulty": payload.level
+    }
+    SESSIONS[session_id] = [q]
+    return { "success": True, "sessionId": session_id, "question": q }
 
 @app.post("/interview/next-question")
 def interview_next(req: QuestionRequest):
     if req.sessionId not in SESSIONS: SESSIONS[req.sessionId] = []
-    try:
-        raw = generate_question(req.role, req.level, history=SESSIONS[req.sessionId])
-        q = {
-            "_id": new_id(),
-            "text": raw.get("question", "Describe a challenge."),
-            "follow_up": raw.get("follow_up", ""),
-            "difficulty": req.level
-        }
-        SESSIONS[req.sessionId].append(q)
-        return { "success": True, "question": q }
-    except Exception as e:
-        logger.error(f"Next Error: {e}")
-        return {"success": False, "error": str(e)}
+    raw = generate_question(req.role, req.level, history=SESSIONS[req.sessionId])
+    q = {
+        "_id": new_id(),
+        "text": raw.get("question", "Describe a challenge."),
+        "follow_up": raw.get("follow_up", ""),
+        "difficulty": req.level
+    }
+    SESSIONS[req.sessionId].append(q)
+    return { "success": True, "question": q }
 
 @app.post("/interview/analyze")
 def interview_analyze(payload: InterviewInput):
     text = payload.answer or payload.transcript
     if not text or len(text) < 5:
         return { "success": True, "data": { "analysis": { "strengths": [], "clarity_score": 0 } } }
-    
     result = analyze_answer(text)
     return { "success": True, "data": { "analysis": result } }
 
 @app.post("/interview/frame-metrics")
 def frame_metrics(payload: FramePayload):
-    img = clean_base64(payload.image_base64)
+    # Basic cleanup if header exists
+    img = payload.image_base64.split(",")[1] if "," in payload.image_base64 else payload.image_base64
     result = analyze_frame(img)
     return result if "success" in result else {"success": True, "metrics": result}
 
-# ==========================================
-# 2️⃣ ROADMAP ROUTES (✅ Fixed Missing Routes)
-# ==========================================
+# --- Roadmap & Trends ---
 @app.post("/roadmap/generate")
 def api_generate_roadmap(payload: RoadmapInput):
-    logger.info(f"🛣️ Generating roadmap for {payload.role}")
-    result = generate_roadmap(payload.role, payload.skills)
-    return result
+    return generate_roadmap(payload.role, payload.skills)
 
 @app.post("/roadmap/gap")
 def api_skill_gap(payload: GapInput):
-    result = analyze_skill_gap(payload.current_skills, payload.target_role)
-    return result
+    return analyze_skill_gap(payload.current_skills, payload.target_role)
 
-# ==========================================
-# 3️⃣ TRENDS ROUTES (✅ Fixed Missing Routes)
-# ==========================================
 @app.get("/trends")
 def api_trends(role: Optional[str] = "Software Engineer"):
-    result = get_market_trends(role)
-    return result
+    return get_market_trends(role)
 
 # ==========================================
-# 4️⃣ RESUME ROUTES (✅ Fixed Missing Routes)
+# 4️⃣ RESUME ROUTES (✅ FIXED & ROBUST)
 # ==========================================
-
 @app.post("/resume/parse")
-async def parse_resume(file: UploadFile = File(...)):
-    # Safety Check
-    if 'parse_resume_from_file' not in globals():
-        raise HTTPException(status_code=500, detail="Parser not loaded")
-
-    suffix = os.path.splitext(file.filename)[1]
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        shutil.copyfileobj(file.file, tmp)
-        temp_path = tmp.name
-
+def parse_resume(payload: ResumeParseRequest):
     try:
-        # Run Parser
-        result = parse_resume_from_file(temp_path)
+        logger.info(f"📄 Parsing Resume URL: {payload.url}")
 
-        parsed_data = result.get("parsed", {})
-        analysis_data = result.get("analysis", {})
+        # 1. Call Gemini Parser
+        result = parse_resume_from_file(payload.url)
 
-        # --- 1. Ensure Feedback Exists ---
-        feedback_list = analysis_data.get("feedback", [])
-        if not feedback_list:
-            feedback_list = [
-                "Resume parsed successfully.",
-                "Structure appears valid.",
-                "Run 'Analyze' for deeper insights."
-            ]
+        # 2. Check for Soft Failures (Bad JSON from AI)
+        if not result.get("success"):
+            error_msg = result.get("error", "")
             
-        # --- 2. Ensure Strengths Exists ---
-        strengths_list = analysis_data.get("strengths", [])
-        if not strengths_list:
-            strengths_list = [
-                "Good file format.",
-                f"Detected {len(parsed_data.get('skills', []))} skills."
-            ]
+            # If it was a JSON error, we can try to recover or send a Partial Success
+            if "JSON" in str(error_msg) or "expecting" in str(error_msg).lower():
+                logger.warning("⚠️ JSON Error detected. Returning fallback data.")
+                return {
+                    "success": True,
+                    "score": 50,
+                    "feedback": ["Resume parsed but AI formatting was imperfect. Please review extracted data."],
+                    "data": { "skills": ["Review Extracted Text"], "experience": [] },
+                    "text": "Partial extraction due to AI formatting error."
+                }
+            
+            logger.error(f"Parser failed: {error_msg}")
+            return result 
 
-        # --- 3. Return EXACTLY what Frontend needs ---
+        # 3. Extract Data safely
+        ai_data = result.get("data", {})
+        
+        # 4. Construct Response
         return {
             "success": True,
-            "score": analysis_data.get("resume_score", 50),
-            
-            # ✅ FIX 1: Rename 'feedbackItems' to 'feedback' to match Frontend
-            "feedback": feedback_list, 
-            
-            # ✅ FIX 2: Include 'weaknesses' (Frontend maps this to 'improvements')
-            "weaknesses": analysis_data.get("weaknesses", ["Add more quantitative metrics.", "Highlight leadership roles."]),
-            
-            "strengths": strengths_list,
-            "skills": parsed_data.get("skills", []),
-            "text": parsed_data.get("raw_text", ""),
-            "data": parsed_data
+            "score": ai_data.get("resume_score", 0),
+            "feedback": ai_data.get("feedback", []),
+            "strengths": ai_data.get("strengths", []),
+            "weaknesses": ai_data.get("weaknesses", []),
+            "data": ai_data, 
+            "skills": ai_data.get("skills", []),
+            "experience": ai_data.get("experience", []),
+            "education": ai_data.get("education", []),
+            "text": ai_data.get("raw_text", "Extracted via Gemini Vision")
         }
 
     except Exception as e:
-        logger.error(f"Parse Error: {e}")
+        logger.error(f"Route Error: {e}")
         return {"success": False, "error": str(e)}
-        
-    finally:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
-            
+
 # ==========================================
 # 🚀 MAIN ENTRY POINT
 # ==========================================

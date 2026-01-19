@@ -84,37 +84,147 @@
 
 
 
-#llm_engine.py
+# #llm_engine.py
+# import os
+# import re
+# import json
+# import google.generativeai as genai
+# from google.api_core import exceptions
+# from dotenv import load_dotenv 
+
+# load_dotenv()
+# # ---------------------------------------------------------
+# # CONFIGURATION
+# # ---------------------------------------------------------
+
+# # Try to get key from Environment (Best Practice)
+# # If not found, you can fallback to a string, but AVOID committing it.
+# API_KEY = os.getenv("GEMINI_API_KEY")
+
+# # CORRECTED MODEL NAME: 'gemini-1.5-flash' is the current stable fast model.
+# # 'gemini-2.0-flash-exp' is available for experimental use.
+# DEFAULT_MODEL = 'gemini-flash-latest' 
+
+# AI_AVAILABLE = False
+
+# if API_KEY:
+#     try:
+#         genai.configure(api_key=API_KEY)
+#         AI_AVAILABLE = True
+#     except Exception as e:
+#         print(f"⚠️ Configuration Error: {e}")
+# else:
+#     print("⚠️ Warning: GOOGLE_API_KEY not found in environment variables.")
+
+# # ---------------------------------------------------------
+# # HELPER FUNCTIONS
+# # ---------------------------------------------------------
+
+# def clean_json_output(text: str) -> str:
+#     """
+#     Removes Markdown formatting, finds the JSON block, and verifies validity.
+#     """
+#     if not text: return "{}"
+    
+#     # Remove markdown code blocks
+#     text = re.sub(r"```json\s*", "", text)
+#     text = re.sub(r"```", "", text)
+    
+#     # Extract substring between first { and last }
+#     start_index = text.find('{')
+#     end_index = text.rfind('}')
+    
+#     if start_index != -1 and end_index != -1:
+#         cleaned_text = text[start_index : end_index + 1]
+#     else:
+#         cleaned_text = text.strip()
+
+#     # Verify if it is valid JSON before returning
+#     try:
+#         json.loads(cleaned_text)
+#         return cleaned_text
+#     except json.JSONDecodeError:
+#         print(f"⚠️ Error: LLM returned invalid JSON:\n{cleaned_text}")
+#         return "{}"
+
+# # ---------------------------------------------------------
+# # MAIN LLM FUNCTION
+# # ---------------------------------------------------------
+
+# def parse_with_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
+#     if not AI_AVAILABLE:
+#         print("❌ Error: AI Library missing or API Key invalid.")
+#         return "{}"
+
+#     try:
+#         # print(f"🤖 Calling Gemini ({model_name})...")
+#         model = genai.GenerativeModel(model_name)
+        
+#         # Generation config to force lower temperature (more deterministic for JSON)
+#         generation_config = genai.types.GenerationConfig(temperature=0.1)
+        
+#         response = model.generate_content(prompt, generation_config=generation_config)
+        
+#         return clean_json_output(response.text)
+
+#     except exceptions.NotFound:
+#         print(f"❌ Error: Model '{model_name}' not found. Check availability.")
+#         return "{}"
+#     except Exception as e:
+#         print(f"⚠️ Gemini API Failed: {e}")
+#         return "{}"
+
+# # ---------------------------------------------------------
+# # TEST EXECUTION
+# # ---------------------------------------------------------
+# if __name__ == "__main__":
+#     # How to run:
+#     # Windows: set GOOGLE_API_KEY=your_key_here && python llm_engine.py
+#     # Mac/Linux: export GOOGLE_API_KEY=your_key_here && python llm_engine.py
+    
+#     test_prompt = "Return a JSON object with a greeting message key 'message'."
+#     print(f"Response: {parse_with_llm(test_prompt)}")
+
+
+
+
+
+
+# src/python/llm_engine.py
 import os
 import re
 import json
-import google.generativeai as genai
-from google.api_core import exceptions
-from dotenv import load_dotenv 
+import logging
+from dotenv import load_dotenv
+from google import genai
+from google.genai import types  # ✅ Required for strict config
+
+# Setup Logger
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
+
 # ---------------------------------------------------------
 # CONFIGURATION
 # ---------------------------------------------------------
 
-# Try to get key from Environment (Best Practice)
-# If not found, you can fallback to a string, but AVOID committing it.
 API_KEY = os.getenv("GEMINI_API_KEY")
 
-# CORRECTED MODEL NAME: 'gemini-1.5-flash' is the current stable fast model.
-# 'gemini-2.0-flash-exp' is available for experimental use.
-DEFAULT_MODEL = 'gemini-flash-latest' 
-
+# ✅ Use a valid model name (2.5 does not exist yet)
+DEFAULT_MODEL = "gemini-flash-latest" 
 AI_AVAILABLE = False
+client = None
 
 if API_KEY:
     try:
-        genai.configure(api_key=API_KEY)
+        client = genai.Client(api_key=API_KEY)
         AI_AVAILABLE = True
+        logger.info(f"✅ Gemini Client Initialized (Model: {DEFAULT_MODEL})")
     except Exception as e:
-        print(f"⚠️ Configuration Error: {e}")
+        logger.error(f"⚠️ Gemini client init failed: {e}")
 else:
-    print("⚠️ Warning: GOOGLE_API_KEY not found in environment variables.")
+    logger.warning("⚠️ GEMINI_API_KEY not found in environment variables.")
 
 # ---------------------------------------------------------
 # HELPER FUNCTIONS
@@ -122,29 +232,28 @@ else:
 
 def clean_json_output(text: str) -> str:
     """
-    Removes Markdown formatting, finds the JSON block, and verifies validity.
+    Removes Markdown formatting, extracts JSON, and validates it.
     """
-    if not text: return "{}"
-    
+    if not text:
+        return "{}"
+
     # Remove markdown code blocks
     text = re.sub(r"```json\s*", "", text)
     text = re.sub(r"```", "", text)
-    
-    # Extract substring between first { and last }
-    start_index = text.find('{')
-    end_index = text.rfind('}')
-    
-    if start_index != -1 and end_index != -1:
-        cleaned_text = text[start_index : end_index + 1]
-    else:
-        cleaned_text = text.strip()
 
-    # Verify if it is valid JSON before returning
+    # Extract JSON block
+    start = text.find("{")
+    end = text.rfind("}")
+
+    if start != -1 and end != -1:
+        text = text[start:end + 1]
+
+    # Validate JSON
     try:
-        json.loads(cleaned_text)
-        return cleaned_text
+        json.loads(text)
+        return text
     except json.JSONDecodeError:
-        print(f"⚠️ Error: LLM returned invalid JSON:\n{cleaned_text}")
+        logger.error("⚠️ Invalid JSON returned by LLM")
         return "{}"
 
 # ---------------------------------------------------------
@@ -152,35 +261,41 @@ def clean_json_output(text: str) -> str:
 # ---------------------------------------------------------
 
 def parse_with_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
-    if not AI_AVAILABLE:
-        print("❌ Error: AI Library missing or API Key invalid.")
+    """
+    Sends a prompt to Gemini and returns a cleaned JSON string.
+    """
+    if not AI_AVAILABLE or not client:
+        logger.error("❌ Gemini client not available.")
         return "{}"
 
     try:
-        # print(f"🤖 Calling Gemini ({model_name})...")
-        model = genai.GenerativeModel(model_name)
+        # ✅ Updated Syntax for google-genai SDK
+        response = client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.1,
+                response_mime_type="application/json"
+            )
+        )
         
-        # Generation config to force lower temperature (more deterministic for JSON)
-        generation_config = genai.types.GenerationConfig(temperature=0.1)
-        
-        response = model.generate_content(prompt, generation_config=generation_config)
-        
+        # Verify response structure
+        if not response.text:
+            return "{}"
+
         return clean_json_output(response.text)
 
-    except exceptions.NotFound:
-        print(f"❌ Error: Model '{model_name}' not found. Check availability.")
-        return "{}"
     except Exception as e:
-        print(f"⚠️ Gemini API Failed: {e}")
+        logger.error(f"⚠️ Gemini API error: {e}")
         return "{}"
 
 # ---------------------------------------------------------
 # TEST EXECUTION
 # ---------------------------------------------------------
+
 if __name__ == "__main__":
-    # How to run:
-    # Windows: set GOOGLE_API_KEY=your_key_here && python llm_engine.py
-    # Mac/Linux: export GOOGLE_API_KEY=your_key_here && python llm_engine.py
-    
-    test_prompt = "Return a JSON object with a greeting message key 'message'."
-    print(f"Response: {parse_with_llm(test_prompt)}")
+    test_prompt = """
+    Return a JSON object with a single key "message"
+    and value "Hello from Gemini".
+    """
+    print("Response:", parse_with_llm(test_prompt))

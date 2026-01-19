@@ -1,598 +1,329 @@
-
-# # src/python/resume_parser.py
-
-# import os
-# import re
-# import json
-# import sys
-# from typing import Dict, Any
-# from dotenv import load_dotenv
-
-# # ---------------------------------------------------------
-# # LOAD ENV (SAFE FOR LOCAL + PROD)
-# # ---------------------------------------------------------
-# load_dotenv()  # harmless in prod, useful locally
-
-# sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-# # ---------------------------------------------------------
-# # LOGGING (stderr ONLY)
-# # ---------------------------------------------------------
-# def log_debug(message: str):
-#     try:
-#         sys.stderr.write(f"[PYTHON LOG] {message}\n")
-#         sys.stderr.flush()
-#     except:
-#         pass
-
-# # ---------------------------------------------------------
-# # SAFE IMPORTS
-# # ---------------------------------------------------------
-# try:
-#     import google.generativeai as genai
-#     from utils.pdf_reader import read_pdf_text
-#     from utils.text_cleaner import clean_text
-#     AI_LIB_AVAILABLE = True
-# except ImportError as e:
-#     log_debug(f"Import error: {e}")
-#     AI_LIB_AVAILABLE = False
-
-# # ---------------------------------------------------------
-# # CONFIG
-# # ---------------------------------------------------------
-# API_KEY = os.getenv("GEMINI_API_KEY")
-# MODEL_NAME = "gemini-flash-latest"
-
-# log_debug(f"GEMINI_API_KEY present: {bool(API_KEY)}")
-
-# AI_AVAILABLE = False
-# if AI_LIB_AVAILABLE and API_KEY:
-#     try:
-#         genai.configure(api_key=API_KEY)
-#         AI_AVAILABLE = True
-#         log_debug("Gemini enabled")
-#     except Exception as e:
-#         log_debug(f"Gemini config failed: {e}")
-
-# # ---------------------------------------------------------
-# # PROMPTS
-# # ---------------------------------------------------------
-# EXTRACTION_PROMPT = """
-# Extract resume info into JSON:
-# {
-#   "skills": ["string"],
-#   "education": [],
-#   "experience": []
-# }
-# Resume:
-# """
-
-# ANALYZE_PROMPT = """
-# Analyze resume JSON and return:
-# {
-#   "resume_score": 75,
-#   "feedback": [],
-#   "strengths": [],
-#   "weaknesses": []
-# }
-# Data:
-# """
-
-# COMMON_SKILLS = ["python", "javascript", "react", "node", "sql", "aws"]
-
-# # ---------------------------------------------------------
-# # GEMINI CALL (SAFE)
-# # ---------------------------------------------------------
-# def call_gemini(prompt: str) -> str | None:
-#     if not AI_AVAILABLE:
-#         return None
-#     try:
-#         model = genai.GenerativeModel(MODEL_NAME)
-#         response = model.generate_content(prompt)
-#         text = response.text or ""
-#         text = text.replace("```json", "").replace("```", "").strip()
-#         return text
-#     except Exception as e:
-#         log_debug(f"Gemini error: {e}")
-#         return None
-
-# # ---------------------------------------------------------
-# # FALLBACKS
-# # ---------------------------------------------------------
-# def fallback_parse(text: str) -> dict:
-#     text_lower = text.lower()
-#     skills = [s.capitalize() for s in COMMON_SKILLS if s in text_lower]
-#     return {
-#         "skills": skills,
-#         "education": [],
-#         "experience": [],
-#         "raw_text": text
-#     }
-
-# def fallback_analysis(parsed: dict) -> dict:
-#     score = 30 + (20 if parsed.get("skills") else 0)
-#     return {
-#         "resume_score": min(score, 70),
-#         "feedback": ["Improve resume formatting", "Add more projects"],
-#         "strengths": parsed.get("skills", []),
-#         "weaknesses": []
-#     }
-
-# # ---------------------------------------------------------
-# # CORE PIPELINE
-# # ---------------------------------------------------------
-# def process_resume_text(text: str) -> Dict[str, Any]:
-#     parsed = None
-#     analysis = None
-
-#     # ---- PARSE ----
-#     gemini_json = call_gemini(EXTRACTION_PROMPT + text[:8000])
-#     if gemini_json:
-#         try:
-#             parsed = json.loads(gemini_json)
-#         except Exception:
-#             parsed = None
-
-#     if not parsed:
-#         parsed = fallback_parse(text)
-
-#     # ---- ANALYZE ----
-#     gemini_analysis = call_gemini(ANALYZE_PROMPT + json.dumps(parsed))
-#     if gemini_analysis:
-#         try:
-#             analysis = json.loads(gemini_analysis)
-#         except Exception:
-#             analysis = None
-
-#     if not analysis:
-#         analysis = fallback_analysis(parsed)
-
-#     return {
-#         "success": True,
-#         "parsed": parsed,
-#         "analysis": analysis,
-#         "mode": "ai" if AI_AVAILABLE else "fallback"
-#     }
-
-# # ---------------------------------------------------------
-# # PUBLIC ENTRY (FILE)
-# # ---------------------------------------------------------
-# def parse_resume_from_file(file_path: str) -> Dict[str, Any]:
-#     try:
-#         text = read_pdf_text(file_path)
-#         text = clean_text(text)
-#         return process_resume_text(text)
-#     except Exception as e:
-#         log_debug(f"Resume read error: {e}")
-#         return {
-#             "success": True,
-#             "parsed": fallback_parse(""),
-#             "analysis": fallback_analysis({"skills": []}),
-#             "mode": "fallback"
-#         }
-
-# # ---------------------------------------------------------
-# # CLI ENTRYPOINT (NODE SPAWN)
-# # ---------------------------------------------------------
-# if __name__ == "__main__":
-#     try:
-#         if len(sys.argv) < 2:
-#             print(json.dumps({"success": False, "error": "No file path provided"}))
-#             sys.exit(0)
-
-#         file_path = sys.argv[1]
-#         result = parse_resume_from_file(file_path)
-
-#         # STRICT JSON OUTPUT
-#         print(json.dumps(result))
-
-#     except Exception as e:
-#         print(json.dumps({
-#             "success": False,
-#             "error": str(e),
-#             "mode": "fallback"
-#         }))
-
-
-
-
-
-
-
-
-# import os
-# import re
-# import json
-# import sys
-# from typing import Dict, Any
-# from dotenv import load_dotenv 
-
-# load_dotenv()
-# # Ensure we can import local utils
-# sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-# # ---------------------------------------------------------
-# # 🔧 LOGGING HELPER (Prevents Node.js JSON Errors)
-# # ---------------------------------------------------------
-# def log_debug(message: str):
-#     """Writes to stderr so it doesn't break the JSON output in stdout."""
-#     try:
-#         # We strip emojis just in case to prevent Windows crashes
-#         safe_message = message.encode('ascii', 'ignore').decode('ascii')
-#         sys.stderr.write(f"[PYTHON LOG] {safe_message}\n")
-#         sys.stderr.flush()
-#     except Exception:
-#         pass
-
-# # 1. Try to import Google AI Library & Utils
-# try:
-#     import google.generativeai as genai
-#     from utils.pdf_reader import read_pdf_text
-#     from utils.text_cleaner import clean_text
-#     AI_AVAILABLE = True
-# except ImportError as e:
-#     log_debug(f"Import Error: {e}")
-#     AI_AVAILABLE = False
-
-# # ---------------------------------------------------------
-# # ⚙️ CONFIGURATION
-# # ---------------------------------------------------------
-
-# API_KEY =os.getenv("GEMINI_API_KEY")
-# MODEL_NAME = 'gemini-flash-latest' 
-
-# if AI_AVAILABLE and API_KEY:
-#     try:
-#         genai.configure(api_key=API_KEY)
-#     except Exception as e:
-#         log_debug(f"Config Error: {e}")
-
-# # ---------------------------------------------------------
-# # 🧠 PROMPTS
-# # ---------------------------------------------------------
-
-# EXTRACTION_PROMPT = """
-# You are an expert ATS Parser. 
-# Extract the following from the resume text below into valid JSON:
-# {
-#     "full_name": "string",
-#     "emails": ["string"],
-#     "phones": ["string"],
-#     "skills": ["string", "string"],
-#     "education": [{ "degree": "string", "school": "string", "year": "string" }],
-#     "experience": [{ "title": "string", "company": "string", "dates": "string", "bullets": ["string"] }],
-#     "projects": [{ "name": "string", "description": "string" }]
-# }
-# Rules: Return ONLY raw JSON. No markdown.
-# Resume Text:
-# """
-
-# ANALYZE_PROMPT = """
-# You are a Senior Tech Recruiter.
-# Analyze the resume data and provide specific feedback.
-# Required JSON Structure:
-# {
-#     "resume_score": 85,
-#     "feedback": ["Advice 1", "Advice 2"],
-#     "strengths": ["Strength 1", "Strength 2"],
-#     "weaknesses": ["Weakness 1", "Weakness 2"]
-# }
-# Parsed Data:
-# """
-
-# COMMON_SKILLS = ['python', 'javascript', 'java', 'react', 'node', 'aws', 'docker', 'sql', 'git']
-
-# # ---------------------------------------------------------
-# # 🛠️ HELPER
-# # ---------------------------------------------------------
-
-# def call_gemini(prompt: str) -> str:
-#     if not AI_AVAILABLE or not API_KEY:
-#         raise Exception("Google AI SDK not installed or API Key missing")
-#     try:
-#         model = genai.GenerativeModel(MODEL_NAME)
-#         response = model.generate_content(prompt)
-#         return response.text.replace("```json", "").replace("```", "").strip()
-#     except Exception as e:
-#         log_debug(f"Gemini API Error: {e}")
-#         raise e
-
-# # ---------------------------------------------------------
-# # 🚀 CORE LOGIC (Shared)
-# # ---------------------------------------------------------
-
-# def _process_resume_content(cleaned_text: str) -> Dict[str, Any]:
-#     """Internal function to process text with Gemini"""
-    
-#     # 1. Extraction
-#     parsed_data = {}
-#     try:
-#         log_debug("Extracting data...")
-#         json_str = call_gemini(EXTRACTION_PROMPT + cleaned_text[:10000])
-#         parsed_data = json.loads(json_str)
-#         parsed_data["raw_text"] = cleaned_text 
-#     except Exception as e:
-#         log_debug(f"Extraction Failed: {e}")
-#         parsed_data = _fallback_parse(cleaned_text)
-
-#     # 2. Analysis
-#     analysis_data = {}
-#     try:
-#         log_debug("Analyzing...")
-#         analysis_payload = {
-#             "skills": parsed_data.get("skills", []),
-#             "exp_preview": [e.get("title", "") for e in parsed_data.get("experience", [])]
-#         }
-#         analysis_json = call_gemini(ANALYZE_PROMPT + json.dumps(analysis_payload))
-#         analysis_data = json.loads(analysis_json)
-#     except Exception as e:
-#         log_debug(f"Analysis Failed: {e}")
-#         analysis_data = {
-#             "resume_score": _calculate_basic_score(parsed_data),
-#             "feedback": _generate_basic_feedback(parsed_data),
-#             "strengths": [],
-#             "weaknesses": []
-#         }
-
-#     return {
-#         "parsed": parsed_data,
-#         "analysis": analysis_data,
-#         "success": True
-#     }
-
-# # ---------------------------------------------------------
-# # 🚀 EXPORTED FUNCTIONS
-# # ---------------------------------------------------------
-
-# def parse_resume_from_file(path: str) -> Dict[str, Any]:
-#     # ✅ FIX: No emojis here anymore
-#     log_debug(f"Reading PDF: {path}") 
-#     try:
-#         raw_text = read_pdf_text(path)
-#         cleaned_text = clean_text(raw_text)
-#         return _process_resume_content(cleaned_text)
-#     except Exception as e:
-#         log_debug(f"PDF Read Error: {e}")
-#         return {"success": False, "error": str(e)}
-
-# def parse_resume_text(text: str) -> Dict[str, Any]:
-#     log_debug("Processing Raw Text input...")
-#     cleaned_text = clean_text(text)
-#     return _process_resume_content(cleaned_text)
-
-# # ---------------------------------------------------------
-# # 🛡️ FALLBACKS
-# # ---------------------------------------------------------
-
-# def _fallback_parse(text: str) -> dict:
-#     text_lower = text.lower()
-#     found_skills = [s.capitalize() for s in COMMON_SKILLS if s in text_lower]
-#     emails = re.findall(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', text)
-#     return {
-#         "full_name": "Candidate",
-#         "emails": emails,
-#         "skills": list(set(found_skills)),
-#         "education": [],
-#         "experience": [],
-#         "raw_text": text
-#     }
-
-# def _calculate_basic_score(data: dict) -> int:
-#     score = 0
-#     if data.get("skills"): score += 30
-#     if len(data.get("experience", [])) > 0: score += 40
-#     return min(score, 75)
-
-# def _generate_basic_feedback(data: dict) -> list:
-#     feedback = []
-#     if not data.get("skills"): feedback.append("Add a Skills section.")
-#     return feedback
-
-# # Aliases
-# parse_resume_file = parse_resume_from_file
-
-# if __name__ == "__main__":
-#     # Ensure stdout uses utf-8 (fixes some Windows pipe issues)
-#     if sys.platform == "win32":
-#         sys.stdout.reconfigure(encoding='utf-8')
-
-#     if len(sys.argv) > 1:
-#         # ✅ FIX: This is the ONLY print statement (prints final JSON)
-#         print(json.dumps(parse_resume_from_file(sys.argv[1]), indent=2))
-
-
-
-
-
-
-
-
+# src/python/resume_parser.py
 import os
 import re
 import json
 import sys
 import logging
-import typing
-from dotenv import load_dotenv 
+import requests
+import tempfile
+import time
+from dotenv import load_dotenv
+from google import genai
+from google.genai import types
 
 load_dotenv()
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# Configure Logging
+# Setup logging
+logging.basicConfig(stream=sys.stderr, level=logging.INFO, format='[PARSER] %(message)s')
 logger = logging.getLogger(__name__)
-
-# 1. Try to import Google AI Library & Utils
-try:
-    import google.generativeai as genai
-    from utils.pdf_reader import read_pdf_text
-    from utils.text_cleaner import clean_text
-    AI_AVAILABLE = True
-except ImportError as e:
-    logger.error(f"Import Error: {e}")
-    AI_AVAILABLE = False
-
-# ⚙️ CONFIGURATION
-
 
 API_KEY = os.getenv("GEMINI_API_KEY")
 
-MODEL_NAME = 'gemini-2.5-flash' 
+# 1. MASTER PROMPT
+MASTER_PROMPT = """
+You are an expert ATS Resume Scanner. Analyze the attached resume PDF.
+You MUST return the response in strict JSON format.
+DO NOT use Markdown code blocks (```json). Just return the raw JSON.
 
-if AI_AVAILABLE and API_KEY:
-    try:
-        genai.configure(api_key=API_KEY)
-    except Exception as e:
-        logger.error(f"Config Error: {e}")
-
-# ---------------------------------------------------------
-# 🧠 PROMPTS
-# ---------------------------------------------------------
-
-EXTRACTION_PROMPT = """
-Extract the following from the resume text into JSON format.
-If a section is missing, return an empty array [].
-
+REQUIRED JSON STRUCTURE:
 {
     "full_name": "string",
     "emails": ["string"],
     "phones": ["string"],
-    "skills": ["string"],
-    "education": [{ "degree": "string", "school": "string", "year": "string" }],
-    "experience": [{ 
-        "title": "string", 
-        "company": "string", 
-        "dates": "string", 
-        "description": "string" 
-    }],
-    "projects": [{ "name": "string", "description": "string" }]
-}
-
-Resume Text:
-"""
-
-ANALYZE_PROMPT = """
-Analyze the resume and provide feedback in JSON format:
-{
+    "skills": ["string", "string"],
+    "education": [
+        { "degree": "string", "institution": "string", "year": "string" }
+    ],
+    "experience": [
+        { "title": "string", "company": "string", "duration": "string", "description": "string" }
+    ],
+    "projects": [
+        { "name": "string", "description": "string" }
+    ],
     "resume_score": 85,
     "feedback": ["Advice 1", "Advice 2"],
     "strengths": ["Strength 1", "Strength 2"],
     "weaknesses": ["Weakness 1", "Weakness 2"]
 }
-Parsed Data:
 """
 
-COMMON_SKILLS = ['python', 'javascript', 'java', 'react', 'node', 'aws', 'docker', 'sql', 'git']
+# ---------------------------------------------------------
+# 🧹 HELPER: CLEAN JSON OUTPUT
+# ---------------------------------------------------------
+def clean_json_text(text: str) -> str:
+    """
+    Removes Markdown formatting and finds the valid JSON block.
+    """
+    if not text: return "{}"
+
+    # 1. Remove Markdown code blocks
+    text = re.sub(r"```json\s*", "", text)
+    text = re.sub(r"```", "", text)
+    
+    # 2. Trim whitespace
+    text = text.strip()
+    
+    # 3. Find the first '{' and last '}' to strip extra text
+    start = text.find("{")
+    end = text.rfind("}")
+    
+    if start != -1 and end != -1:
+        text = text[start:end+1]
+    
+    return text
 
 # ---------------------------------------------------------
-# 🚀 CORE LOGIC
+# 🚀 MAIN PARSER FUNCTION
 # ---------------------------------------------------------
+def parse_resume_from_file(path_or_url: str) -> dict:
+    """
+    Downloads and analyzes PDF using Gemini 2.5 Flash (Stable).
+    """
+    if not API_KEY:
+        return {"success": False, "error": "Missing GEMINI_API_KEY"}
 
-def call_gemini_json(prompt: str, content: str) -> dict:
-    """
-    ✅ FIX: Uses Native JSON Mode to guarantee valid output
-    """
-    if not AI_AVAILABLE or not API_KEY:
-        raise Exception("Google AI SDK not installed or API Key missing")
+    temp_path = None
+    
     try:
-        # Configure model to force JSON output
-        model = genai.GenerativeModel(
-            MODEL_NAME,
-            generation_config={"response_mime_type": "application/json"}
+        # ✅ Initialize Client
+        client = genai.Client(api_key=API_KEY)
+        target_path = path_or_url
+
+        # 1. Download if URL
+        if path_or_url.startswith("http"):
+            logger.info(f"⬇️ Downloading: {path_or_url}")
+            try:
+                response = requests.get(path_or_url)
+                response.raise_for_status()
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                    tmp.write(response.content)
+                    target_path = tmp.name
+                    temp_path = tmp.name
+            except Exception as e:
+                return {"success": False, "error": f"Download Failed: {str(e)}"}
+
+        # 2. Upload to Gemini
+        logger.info(f"📤 Uploading to Gemini...")
+        
+        # ✅ NEW: File Upload Syntax
+        uploaded_file = client.files.upload(file=target_path, config={'mime_type': 'application/pdf'})
+        
+        # Wait for processing
+        while uploaded_file.state.name == "PROCESSING":
+            time.sleep(1)
+            uploaded_file = client.files.get(name=uploaded_file.name)
+
+        if uploaded_file.state.name == "FAILED":
+            return {"success": False, "error": "Gemini failed to process PDF."}
+
+        # 3. Generate Analysis
+        logger.info("🧠 Analyzing with Gemini 2.5 Flash...")
+        
+        # ✅ NEW: Generation Syntax
+        response = client.models.generate_content(
+            model="gemini-flash-latest",
+            contents=[MASTER_PROMPT, uploaded_file],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json"
+            )
         )
         
-        response = model.generate_content(prompt + content)
+        # 4. Clean and Parse Result
+        if not response.text:
+             raise ValueError("Empty response from AI")
+
+        cleaned_text = clean_json_text(response.text)
         
-        # Parse the response directly
-        return json.loads(response.text)
-        
-    except Exception as e:
-        logger.error(f"Gemini JSON Error: {e}")
-        # If Native JSON fails, try standard extraction
         try:
-             model = genai.GenerativeModel(MODEL_NAME)
-             response = model.generate_content(prompt + content)
-             text = response.text.replace("```json", "").replace("```", "").strip()
-             start = text.find("{")
-             end = text.rfind("}")
-             return json.loads(text[start:end+1])
-        except:
-             raise e
-
-def _process_resume_content(cleaned_text: str) -> dict:
-    
-    # 1. Extraction (The Data Tab)
-    parsed_data = {}
-    try:
-        # Use Native JSON call
-        parsed_data = call_gemini_json(EXTRACTION_PROMPT, cleaned_text[:12000])
-        parsed_data["raw_text"] = cleaned_text 
-    except Exception as e:
-        logger.error(f"Extraction Failed: {e}")
-        parsed_data = _fallback_parse(cleaned_text)
-
-    # 2. Analysis (The Analysis Tab)
-    analysis_data = {}
-    try:
-        # Prepare small payload
-        analysis_payload = {
-            "skills": parsed_data.get("skills", []),
-            "experience": [e.get("title", "") for e in parsed_data.get("experience", [])]
-        }
-        # Use Native JSON call
-        analysis_data = call_gemini_json(ANALYZE_PROMPT, json.dumps(analysis_payload))
-    except Exception as e:
-        logger.error(f"Analysis Failed: {e}")
-        analysis_data = {
-            "resume_score": 50,
-            "feedback": ["Could not analyze details."],
-            "strengths": [],
-            "weaknesses": []
+            ai_data = json.loads(cleaned_text)
+        except json.JSONDecodeError as e:
+            logger.error(f"❌ JSON Parse Error: {e}")
+            return {"success": False, "error": "AI returned invalid JSON format."}
+        
+        # Add success flag
+        return {
+            "success": True,
+            "data": ai_data
         }
 
-    return {
-        "parsed": parsed_data,
-        "analysis": analysis_data,
-        "success": True
-    }
-
-# ---------------------------------------------------------
-# 🚀 EXPORTED FUNCTIONS
-# ---------------------------------------------------------
-
-def parse_resume_from_file(path: str) -> dict:
-    try:
-        raw_text = read_pdf_text(path)
-        cleaned_text = clean_text(raw_text)
-        if not cleaned_text:
-            return {"success": False, "error": "Empty PDF"}
-        return _process_resume_content(cleaned_text)
     except Exception as e:
-        logger.error(f"PDF Error: {e}")
+        logger.error(f"❌ Error: {str(e)}")
         return {"success": False, "error": str(e)}
+    
+    finally:
+        # Clean up temp file
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except:
+                pass
 
+# Fallback for text endpoint
 def parse_resume_text(text: str) -> dict:
-    cleaned_text = clean_text(text)
-    return _process_resume_content(cleaned_text)
-
-# ---------------------------------------------------------
-# 🛡️ FALLBACKS
-# ---------------------------------------------------------
-
-def _fallback_parse(text: str) -> dict:
-    text_lower = text.lower()
-    found_skills = [s.capitalize() for s in COMMON_SKILLS if s in text_lower]
-    emails = re.findall(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', text)
-    return {
-        "full_name": "Candidate",
-        "emails": emails,
-        "skills": list(set(found_skills)),
-        "education": [],
-        "experience": [],
-        "raw_text": text
-    }
+    return {"error": "Use PDF upload for best results."}
 
 if __name__ == "__main__":
-    if sys.platform == "win32":
-        sys.stdout.reconfigure(encoding='utf-8')
     if len(sys.argv) > 1:
         print(json.dumps(parse_resume_from_file(sys.argv[1]), indent=2))
+
+
+
+
+#Last working version
+# import os
+# import re
+# import json
+# import sys
+# import logging
+# import requests
+# import tempfile
+# import time
+# from dotenv import load_dotenv
+
+# load_dotenv()
+
+# # Setup logging
+# logging.basicConfig(stream=sys.stderr, level=logging.INFO, format='[PARSER] %(message)s')
+# logger = logging.getLogger(__name__)
+
+# API_KEY = os.getenv("GEMINI_API_KEY")
+
+# # 1. SETUP GOOGLE AI
+# try:
+#     import google.generativeai as genai
+#     if API_KEY:
+#         genai.configure(api_key=API_KEY)
+#     else:
+#         logger.error("❌ Missing GEMINI_API_KEY")
+# except ImportError:
+#     logger.error("❌ google-generativeai not installed.")
+
+# # 2. MASTER PROMPT
+# MASTER_PROMPT = """
+# You are an expert ATS Resume Scanner. Analyze the attached resume PDF.
+# You MUST return the response in strict JSON format.
+# DO NOT use Markdown code blocks (```json). Just return the raw JSON.
+
+# REQUIRED JSON STRUCTURE:
+# {
+#     "full_name": "string",
+#     "emails": ["string"],
+#     "phones": ["string"],
+#     "skills": ["string", "string"],
+#     "education": [
+#         { "degree": "string", "institution": "string", "year": "string" }
+#     ],
+#     "experience": [
+#         { "title": "string", "company": "string", "duration": "string", "description": "string" }
+#     ],
+#     "projects": [
+#         { "name": "string", "description": "string" }
+#     ],
+#     "resume_score": 85,
+#     "feedback": ["Advice 1", "Advice 2"],
+#     "strengths": ["Strength 1", "Strength 2"],
+#     "weaknesses": ["Weakness 1", "Weakness 2"]
+# }
+# """
+
+# # ---------------------------------------------------------
+# # 🧹 HELPER: CLEAN JSON OUTPUT
+# # ---------------------------------------------------------
+# def clean_json_text(text: str) -> str:
+#     """
+#     Removes Markdown formatting and finds the valid JSON block.
+#     """
+#     # 1. Remove Markdown code blocks
+#     text = re.sub(r"```json\s*", "", text)
+#     text = re.sub(r"```", "", text)
+    
+#     # 2. Trim whitespace
+#     text = text.strip()
+    
+#     # 3. Find the first '{' and last '}' to strip extra text
+#     start = text.find("{")
+#     end = text.rfind("}")
+    
+#     if start != -1 and end != -1:
+#         text = text[start:end+1]
+    
+#     return text
+
+# # ---------------------------------------------------------
+# # 🚀 MAIN PARSER FUNCTION
+# # ---------------------------------------------------------
+# def parse_resume_from_file(path_or_url: str) -> dict:
+#     """
+#     Downloads and analyzes PDF using Gemini 2.5 Flash (Most stable for JSON).
+#     """
+#     temp_path = None
+#     try:
+#         target_path = path_or_url
+
+#         # 1. Download if URL
+#         if path_or_url.startswith("http"):
+#             logger.info(f"⬇️ Downloading: {path_or_url}")
+#             try:
+#                 response = requests.get(path_or_url)
+#                 response.raise_for_status()
+#                 with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+#                     tmp.write(response.content)
+#                     target_path = tmp.name
+#                     temp_path = tmp.name
+#             except Exception as e:
+#                 return {"success": False, "error": f"Download Failed: {str(e)}"}
+
+#         # 2. Upload to Gemini
+#         logger.info(f"📤 Uploading to Gemini...")
+#         uploaded_file = genai.upload_file(target_path, mime_type="application/pdf")
+        
+#         # Wait for processing
+#         while uploaded_file.state.name == "PROCESSING":
+#             time.sleep(1)
+#             uploaded_file = genai.get_file(uploaded_file.name)
+
+#         if uploaded_file.state.name == "FAILED":
+#             return {"success": False, "error": "Gemini failed to process PDF."}
+
+#         # 3. Generate Analysis
+#         # Switched to gemini-2.5-flash for better JSON stability
+#         logger.info("🧠 Analyzing with Gemini 2.5 Flash...")
+#         model = genai.GenerativeModel(
+#             model_name="gemini-2.5-flash",
+#             generation_config={"response_mime_type": "application/json"}
+#         )
+
+#         response = model.generate_content([MASTER_PROMPT, uploaded_file])
+        
+#         # 4. Clean and Parse Result
+#         raw_text = response.text
+#         cleaned_text = clean_json_text(raw_text)
+        
+#         try:
+#             ai_data = json.loads(cleaned_text)
+#         except json.JSONDecodeError as e:
+#             logger.error(f"❌ JSON Parse Error: {e}")
+#             logger.error(f"Raw Output: {raw_text[:200]}...") # Log start of error
+#             return {"success": False, "error": "AI returned invalid JSON format."}
+        
+#         # Add success flag
+#         return {
+#             "success": True,
+#             "data": ai_data
+#         }
+
+#     except Exception as e:
+#         logger.error(f"❌ Error: {str(e)}")
+#         return {"success": False, "error": str(e)}
+    
+#     finally:
+#         if temp_path and os.path.exists(temp_path):
+#             os.remove(temp_path)
+
+# # Fallback for text endpoint (deprecated)
+# def parse_resume_text(text: str) -> dict:
+#     return {"error": "Use PDF upload for best results."}
+
+# if __name__ == "__main__":
+#     if len(sys.argv) > 1:
+#         print(json.dumps(parse_resume_from_file(sys.argv[1]), indent=2))
