@@ -814,10 +814,12 @@ def parse_resume(payload: ResumeParseRequest):
         logger.error(f"Route Error: {e}")
         return {"success": False, "error": str(e)}
 
-# ==========================================
-# 🚀 MAIN ENTRY POINT
-# ==========================================
 if __name__ == "__main__":
+    # 1. Get port from env or default to 8000 (Matches your PYTHON_API_URL)
     port = int(os.environ.get("PYTHON_PORT", 8000))
+    
     logger.info(f"🔥 Python Engine starting on Port {port}...")
-    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)
+
+    # 2. ✅ CRITICAL FIX: Pass 'app' directly, remove quotes.
+    # Also remove 'reload=True' for production stability.
+    uvicorn.run(app, host="0.0.0.0", port=port)
