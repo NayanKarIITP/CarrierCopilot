@@ -170,7 +170,7 @@ const axios = require("axios");
 // 🔧 CONFIGURATION
 // ---------------------------------------------------------
 // Default to localhost for testing if ENV is missing
-const PYTHON_API_URL = process.env.PYTHON_SERVICE_URL || "https://carriercopilot-nk.onrender.com";
+const PYTHON_API_URL = process.env.PYTHON_SERVICE_URL || "http://127.0.0.1:8000";
 
 console.log(`🔌 Connecting to Python Engine at: ${PYTHON_API_URL}`);
 
