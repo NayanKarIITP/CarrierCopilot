@@ -147,7 +147,7 @@ def get_market_trends(role="Software Engineer"):
         
         # C. GENERATE (Using new Client)
         response = client.models.generate_content(
-            model='gemini-2.0-flash', # ✅ Fixed Model Name
+            model='gemini-flash-latest', # ✅ Fixed Model Name
             contents=prompt,
             config=types.GenerateContentConfig(
                 temperature=0.3,

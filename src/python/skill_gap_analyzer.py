@@ -109,7 +109,7 @@ def analyze_skill_gap(current_skills: list, target_role: str) -> dict:
     
 #     try:
 #         # Use 2.5 Flash for better JSON stability
-#         model = genai.GenerativeModel('gemini-2.5-flash', generation_config={"response_mime_type": "application/json"})
+#         model = genai.GenerativeModel('gemini-flash-latest', generation_config={"response_mime_type": "application/json"})
 #         response = model.generate_content(prompt)
         
 #         result = json.loads(response.text)

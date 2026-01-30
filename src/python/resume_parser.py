@@ -77,7 +77,7 @@ def clean_json_text(text: str) -> str:
 # ---------------------------------------------------------
 def parse_resume_from_file(path_or_url: str) -> dict:
     """
-    Downloads and analyzes PDF using Gemini 2.5 Flash (Stable).
+    Downloads and analyzes PDF using gemini-flash-latest (Stable).
     """
     if not API_KEY:
         return {"success": False, "error": "Missing GEMINI_API_KEY"}
@@ -117,7 +117,7 @@ def parse_resume_from_file(path_or_url: str) -> dict:
             return {"success": False, "error": "Gemini failed to process PDF."}
 
         # 3. Generate Analysis
-        logger.info("🧠 Analyzing with Gemini 2.5 Flash...")
+        logger.info("🧠 Analyzing with Gemini model...")
         
         # ✅ NEW: Generation Syntax
         response = client.models.generate_content(
@@ -165,6 +165,8 @@ def parse_resume_text(text: str) -> dict:
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         print(json.dumps(parse_resume_from_file(sys.argv[1]), indent=2))
+
+
 
 
 

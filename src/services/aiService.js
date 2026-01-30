@@ -64,7 +64,7 @@ module.exports = {
   async generateText(prompt) {
     try {
       // Use the 'gemini-1.5-flash' model for speed and efficiency
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+      const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
       const result = await model.generateContent(prompt);
       const response = await result.response;
