@@ -1,4 +1,3 @@
-# src/python/roadmap_generator.py
 
 
 import os
@@ -11,7 +10,7 @@ from google.genai import types
 
 load_dotenv()
 
-#  LOGGING HELPER
+# LOGGING HELPER
 def log_debug(message: str):
     try:
         safe_message = message.encode('ascii', 'ignore').decode('ascii')
@@ -24,34 +23,40 @@ def log_debug(message: str):
 API_KEY = os.getenv("GEMINI_API_KEY")
 MODEL_NAME = 'gemini-flash-latest' 
 
-# AI PROMPT 
+# PROMPT 
 ROADMAP_PROMPT = """
-Act as a strict Senior Career Coach. Create a step-by-step learning roadmap for a user wanting to become a: **{role}**.
+Act as a strict Senior Technical Mentor for a University Student.
+Create a high-quality, resource-heavy learning roadmap for the role: **{role}**.
 
-The user's CURRENT skills are: {skills}.
+User's Background Skills: {skills}
 
-CRITICAL INSTRUCTIONS:
-1. **Target Role Priority:** Your ONLY goal is to make them a {role}. 
-2. **Ignore Irrelevant Skills:** If the user knows "HTML/CSS" but wants to be a "Data Scientist", IGNORE the HTML. Do not try to combine them. Start from scratch with Python/Math if needed.
-3. **Gap Analysis:** Only use their current skills if they strictly help with the {role}.
-4. **Structure:** Generate exactly 5 distinct steps: "Foundation", "Skill Gap Fill", "Real World Projects", "Advanced Specialization", "Job Preparation".
+### STRICT CONSTRAINTS (DO NOT BREAK):
+1. **DOMAIN ISOLATION:** - If the Target Role is **"Full Stack Developer"**, you must **ONLY** include Web Technologies (React, Node.js, Next.js, SQL, Docker, System Design).
+   - **FORBIDDEN TOPICS:** Do NOT include Machine Learning, Data Science, Pandas, NumPy, or Computer Vision. Even if the user knows them, **DROP THEM**. They are irrelevant for this specific roadmap.
 
-OUTPUT FORMAT (Strict JSON, No Markdown):
+2. **RESOURCE DENSITY (CRITICAL):** - The user is a student. For *every single step*, you MUST provide **4 DISTINCT RESOURCES**:
+     1. **Video Course:** (e.g., specific YouTube Playlist or FreeCodeCamp link).
+     2. **Documentation:** (e.g., React Docs, MDN).
+     3. **Project Idea:** A specific small tool to build to practice this step.
+     4. **Interactive:** (e.g., LeetCode tag, Odin Project link, or similar).
+
+3. **STEP STRUCTURE:** Generate **8 to 12 steps**. Start from "Core Foundations" (assuming they need a refresh) to "Deployment & DevOps".
+
+### OUTPUT FORMAT (Strict JSON):
 {{
-    "level": "Beginner/Intermediate/Advanced",
     "roadmap": [
         {{
             "step": 1,
-            "title": "Solidify Foundations",
-            "description": "Master the core basics required for {role}...",
+            "title": "Web Fundamentals & Advanced JavaScript",
+            "description": "Master the DOM, Event Loop, Promises, and ES6+ syntax before touching frameworks.",
             "duration": "2 Weeks",
             "type": "skills",
-            "items": ["Skill A", "Skill B"],
+            "items": ["DOM Manipulation", "Fetch API", "ES6 Modules", "Async/Await"],
             "resources": [
-                {{
-                    "title": "Top Rated Book/Course Name",
-                    "type": "course"
-                }}
+                {{ "title": "Namaste JavaScript (YouTube)", "type": "Video", "link": "https://www.youtube.com/@AkshaySaini" }},
+                {{ "title": "MDN Web Docs - JS", "type": "Documentation", "link": "https://developer.mozilla.org/en-US/docs/Web/JavaScript" }},
+                {{ "title": "Build a Kanban Board", "type": "Project", "link": "#" }},
+                {{ "title": "The Odin Project - Foundations", "type": "Interactive", "link": "https://www.theodinproject.com/" }}
             ]
         }}
     ]
@@ -59,15 +64,38 @@ OUTPUT FORMAT (Strict JSON, No Markdown):
 """
 
 # GENERATION LOGIC
-def generate_roadmap(skills, target_role):
-    log_debug(f"Generating roadmap for {target_role}...")
+def generate_roadmap(arg1, arg2):
+    # BULLETPROOF ARGUMENT HANDLING
+    # Detect which argument is the Role (string) and which is Skills (list/string)
+    if isinstance(arg1, list) or (isinstance(arg1, str) and "," in arg1 and len(arg1) > 50):
+        skills = arg1
+        target_role = arg2
+    else:
+        target_role = arg1
+        skills = arg2
+    
+    # Ensure target_role is a string
+    if not isinstance(target_role, str):
+        target_role = "Software Engineer" # Fallback
+
+    log_debug(f"Generating ISOLATED roadmap for '{target_role}'...")
     
     if not API_KEY:
         return {"error": "API Key missing"}
 
     try:
-        skills_str = ", ".join(skills) if skills else "No prior experience"
-        
+        # Pre-process skills
+        if isinstance(skills, list):
+            # FILTERING MAGIC: If Web Dev, physically remove ML keywords from the list
+            if any(x in target_role.lower() for x in ["full stack", "web", "frontend", "backend", "react", "node"]):
+                log_debug("⚡️ Web Dev detected: Purging Data Science skills from context...")
+                forbidden = ['pandas', 'numpy', 'scikit', 'learn', 'tensor', 'keras', 'pytorch', 'vision', 'opencv', 'mediapipe', 'jupyter']
+                skills = [s for s in skills if not any(bad in s.lower() for bad in forbidden)]
+
+            skills_str = ", ".join(skills)
+        else:
+            skills_str = str(skills)
+
         client = genai.Client(api_key=API_KEY)
 
         prompt = ROADMAP_PROMPT.format(role=target_role, skills=skills_str)
@@ -76,7 +104,7 @@ def generate_roadmap(skills, target_role):
             model=MODEL_NAME,
             contents=prompt,
             config=types.GenerateContentConfig(
-                temperature=0.3, #  Lower temp = Less hallucination, more strict
+                temperature=0.2, # Low temp = Follows instructions strictly
                 response_mime_type="application/json"
             )
         )
@@ -90,13 +118,12 @@ def generate_roadmap(skills, target_role):
     except Exception as e:
         log_debug(f"Generation Failed: {e}")
         return {
-            "level": "Error",
             "roadmap": [
                 {
                     "step": 1,
-                    "title": "AI Busy",
-                    "description": "Could not generate roadmap. Please try again.",
-                    "type": "error",
+                    "title": "Error Generating Roadmap",
+                    "description": "Please try again.",
+                    "duration": "0 Weeks",
                     "resources": []
                 }
             ]
@@ -115,15 +142,14 @@ if __name__ == "__main__":
             else:
                 request = {"skills": [], "role": "Full Stack Developer"}
         else:
-            request = {"skills": ["HTML", "CSS"], "role": "Data Scientist"} # Test case
+            # Manual Test Case
+            request = {"skills": ["Python", "Machine Learning"], "role": "Full Stack Developer"} 
 
         skills = request.get("skills", [])
         role = request.get("role", "Software Engineer")
         
-        if isinstance(skills, str):
-            skills = [s.strip() for s in skills.split(',')]
-
-        result = generate_roadmap(skills, role)
+        # Call with (Role, Skills) which is the standard convention
+        result = generate_roadmap(role, skills)
         print(json.dumps(result, indent=2))
 
     except Exception as e:
