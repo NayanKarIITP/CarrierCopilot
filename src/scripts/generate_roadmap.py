@@ -1,81 +1,3 @@
-# import sys
-# import json
-
-# # Define the "Brain"
-# ROLE_REQUIREMENTS = {
-#     "senior-fullstack": ["System Design", "Docker", "Kubernetes", "CI/CD", "Next.js"],
-#     "data-scientist": ["Python", "Pandas", "Scikit-learn", "TensorFlow", "SQL"],
-#     "devops": ["AWS", "Terraform", "Linux", "Jenkins", "Ansible"],
-#     "ml-engineer": ["PyTorch", "Linear Algebra", "Model Deployment", "NLP"]
-# }
-
-# def generate(skills, role):
-#     current_skills = [s.lower() for s in skills]
-#     # Default to fullstack if role not found
-#     required = ROLE_REQUIREMENTS.get(role, ROLE_REQUIREMENTS["senior-fullstack"])
-    
-#     # Calculate Gaps
-#     gaps = [s for s in required if s.lower() not in current_skills]
-#     if not gaps: gaps = ["Advanced System Design", "Cloud Architecture"]
-
-#     # Build Roadmap Object
-#     roadmap = [
-#         {
-#             "step": 1,
-#             "icon": "✓",
-#             "title": "Your Foundation",
-#             "subtitle": "Current Strengths",
-#             "color": "bg-green-100 dark:bg-green-900",
-#             "textColor": "text-green-700 dark:text-green-100",
-#             "items": skills if skills else ["No skills provided"],
-#             "type": "skills"
-#         },
-#         {
-#             "step": 2,
-#             "icon": "⚠",
-#             "title": "Skills to Acquire",
-#             "subtitle": "Identified Gaps",
-#             "color": "bg-amber-100 dark:bg-amber-900",
-#             "textColor": "text-amber-700 dark:text-amber-100",
-#             "items": gaps,
-#             "type": "gaps"
-#         },
-#         {
-#             "step": 3,
-#             "icon": "📚",
-#             "title": "Recommended Courses",
-#             "subtitle": "Learning Resources",
-#             "color": "bg-blue-100 dark:bg-blue-900",
-#             "textColor": "text-blue-700 dark:text-blue-100",
-#             "items": [{"title": f"Master {g}", "platform": "Udemy"} for g in gaps[:3]],
-#             "type": "courses"
-#         },
-#         {
-#             "step": 4,
-#             "icon": "🔨",
-#             "title": "Projects",
-#             "subtitle": "Build Experience",
-#             "color": "bg-purple-100 dark:bg-purple-900",
-#             "textColor": "text-purple-700 dark:text-purple-100",
-#             "items": [f"Build a {role} App", f"Integrate {gaps[0] if gaps else 'Tech'}"],
-#             "type": "projects"
-#         }
-#     ]
-#     return {"roadmap": roadmap}
-
-# if __name__ == "__main__":
-#     try:
-#         input_data = json.loads(sys.argv[1])
-#         print(json.dumps(generate(input_data.get("skills", []), input_data.get("role", ""))))
-#     except Exception as e:
-#         print(json.dumps({"roadmap": []}))
-
-
-
-
-
-
-
 
 import sys
 import json
@@ -134,8 +56,6 @@ def generate_real_roadmap(skills, role):
 
     # B. Auth
     api_key=os.getenv("GEMINI_API_KEY")
-    # IF ENV FAILS, PASTE KEY HERE FOR TESTING:
-    # api_key = "AIzaSy..." 
 
     if not api_key:
         return get_fallback_roadmap(skills, role)

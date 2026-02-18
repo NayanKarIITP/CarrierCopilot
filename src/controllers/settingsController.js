@@ -1,8 +1,7 @@
 const Settings = require("../models/Settings");
 
-/**
- * Get settings for the user (or default)
- */
+// Get settings for the user (or default)
+
 exports.getSettings = async (req, res) => {
   try {
     let settings = await Settings.findOne({ userId: req.user._id });
@@ -26,9 +25,8 @@ exports.getSettings = async (req, res) => {
   }
 };
 
-/**
- * Update or create settings
- */
+// Update or create settings
+
 exports.updateSettings = async (req, res) => {
   try {
     const updates = req.body;

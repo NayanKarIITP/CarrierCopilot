@@ -11,14 +11,14 @@ const roadmapItemSchema = new mongoose.Schema({
     default: "pending" 
   },
   deadline: Date
-}, { _id: false }); // _id is usually not needed for sub-documents unless you update them individually
+}, { _id: false }); // _id is usually not needed for sub-documents unless i update them individually
 
 const resumeSchema = new mongoose.Schema({
   userId: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: "User", 
     required: true,
-    index: true // ✅ Optimizes lookup queries
+    index: true // Optimizes lookup queries
   },
 
   // 1. Basic Info
@@ -50,11 +50,11 @@ const resumeSchema = new mongoose.Schema({
   strengths: [String],
   weaknesses: [String],
 
-  // ✅ CRITICAL: Gap Analysis & Learning Path
+  // CRITICAL: Gap Analysis & Learning Path
   gaps: [String],
   
   // Using the sub-schema defined above for stricter validation
-  // If you prefer loose structure, keep it as [Object]
+  // If i want to prefer loose structure, keep it as [Object]
   roadmap: [roadmapItemSchema], 
 
   // Cloudinary Info
@@ -64,50 +64,3 @@ const resumeSchema = new mongoose.Schema({
 
 module.exports = mongoose.model("Resume", resumeSchema);
 
-
-
-// //last working version with roadmap and gaps
-// const mongoose = require("mongoose");
-
-// const resumeSchema = new mongoose.Schema({
-//   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  
-//   // 1. Basic Info
-//   rawText: String,
-//   skills: [String],
-
-//   // 2. Education
-//   education: [
-//     {
-//       degree: String,
-//       school: String, 
-//       year: String,
-//     }
-//   ],
-
-//   // 3. Experience 
-//   experience: [
-//     {
-//       title: String,
-//       company: String,
-//       dates: String,   
-//       bullets: [String], 
-//     }
-//   ],
-
-//   // 4. Analysis Data
-//   score: { type: Number, default: 0 },
-//   feedback: [String],
-//   strengths: [String],
-//   weaknesses: [String],
-
-//   // ✅ CRITICAL: These fields calculate the "Skill Gap" & "Learning Path"
-//   gaps: [String],
-//   roadmap: [Object], 
-
-//   // Cloudinary Info
-//   fileURL: { type: String, required: true },
-//   fileId: String
-// }, { timestamps: true });
-
-// module.exports = mongoose.model("Resume", resumeSchema);

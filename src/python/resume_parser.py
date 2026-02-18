@@ -47,9 +47,8 @@ REQUIRED JSON STRUCTURE:
 }
 """
 
-# ---------------------------------------------------------
-# 🧹 HELPER: CLEAN JSON OUTPUT
-# ---------------------------------------------------------
+# HELPER: CLEAN JSON OUTPUT
+
 def clean_json_text(text: str) -> str:
     """
     Removes Markdown formatting and finds the valid JSON block.
@@ -72,9 +71,7 @@ def clean_json_text(text: str) -> str:
     
     return text
 
-# ---------------------------------------------------------
-# 🚀 MAIN PARSER FUNCTION
-# ---------------------------------------------------------
+# MAIN PARSER FUNCTION
 def parse_resume_from_file(path_or_url: str) -> dict:
     """
     Downloads and analyzes PDF using gemini-flash-latest (Stable).
@@ -85,13 +82,13 @@ def parse_resume_from_file(path_or_url: str) -> dict:
     temp_path = None
     
     try:
-        # ✅ Initialize Client
+        #  Initialize Client
         client = genai.Client(api_key=API_KEY)
         target_path = path_or_url
 
         # 1. Download if URL
         if path_or_url.startswith("http"):
-            logger.info(f"⬇️ Downloading: {path_or_url}")
+            logger.info(f"⬇ Downloading: {path_or_url}")
             try:
                 response = requests.get(path_or_url)
                 response.raise_for_status()
@@ -103,9 +100,9 @@ def parse_resume_from_file(path_or_url: str) -> dict:
                 return {"success": False, "error": f"Download Failed: {str(e)}"}
 
         # 2. Upload to Gemini
-        logger.info(f"📤 Uploading to Gemini...")
+        logger.info(f" Uploading to Gemini...")
         
-        # ✅ NEW: File Upload Syntax
+        #  NEW: File Upload Syntax
         uploaded_file = client.files.upload(file=target_path, config={'mime_type': 'application/pdf'})
         
         # Wait for processing
@@ -117,9 +114,9 @@ def parse_resume_from_file(path_or_url: str) -> dict:
             return {"success": False, "error": "Gemini failed to process PDF."}
 
         # 3. Generate Analysis
-        logger.info("🧠 Analyzing with Gemini model...")
+        logger.info(" Analyzing with Gemini model...")
         
-        # ✅ NEW: Generation Syntax
+        # NEW: Generation Syntax
         response = client.models.generate_content(
             model="gemini-flash-latest",
             contents=[MASTER_PROMPT, uploaded_file],
@@ -137,7 +134,7 @@ def parse_resume_from_file(path_or_url: str) -> dict:
         try:
             ai_data = json.loads(cleaned_text)
         except json.JSONDecodeError as e:
-            logger.error(f"❌ JSON Parse Error: {e}")
+            logger.error(f" JSON Parse Error: {e}")
             return {"success": False, "error": "AI returned invalid JSON format."}
         
         # Add success flag
@@ -147,7 +144,7 @@ def parse_resume_from_file(path_or_url: str) -> dict:
         }
 
     except Exception as e:
-        logger.error(f"❌ Error: {str(e)}")
+        logger.error(f" Error: {str(e)}")
         return {"success": False, "error": str(e)}
     
     finally:
@@ -168,164 +165,3 @@ if __name__ == "__main__":
 
 
 
-
-
-
-#Last working version
-# import os
-# import re
-# import json
-# import sys
-# import logging
-# import requests
-# import tempfile
-# import time
-# from dotenv import load_dotenv
-
-# load_dotenv()
-
-# # Setup logging
-# logging.basicConfig(stream=sys.stderr, level=logging.INFO, format='[PARSER] %(message)s')
-# logger = logging.getLogger(__name__)
-
-# API_KEY = os.getenv("GEMINI_API_KEY")
-
-# # 1. SETUP GOOGLE AI
-# try:
-#     import google.generativeai as genai
-#     if API_KEY:
-#         genai.configure(api_key=API_KEY)
-#     else:
-#         logger.error("❌ Missing GEMINI_API_KEY")
-# except ImportError:
-#     logger.error("❌ google-generativeai not installed.")
-
-# # 2. MASTER PROMPT
-# MASTER_PROMPT = """
-# You are an expert ATS Resume Scanner. Analyze the attached resume PDF.
-# You MUST return the response in strict JSON format.
-# DO NOT use Markdown code blocks (```json). Just return the raw JSON.
-
-# REQUIRED JSON STRUCTURE:
-# {
-#     "full_name": "string",
-#     "emails": ["string"],
-#     "phones": ["string"],
-#     "skills": ["string", "string"],
-#     "education": [
-#         { "degree": "string", "institution": "string", "year": "string" }
-#     ],
-#     "experience": [
-#         { "title": "string", "company": "string", "duration": "string", "description": "string" }
-#     ],
-#     "projects": [
-#         { "name": "string", "description": "string" }
-#     ],
-#     "resume_score": 85,
-#     "feedback": ["Advice 1", "Advice 2"],
-#     "strengths": ["Strength 1", "Strength 2"],
-#     "weaknesses": ["Weakness 1", "Weakness 2"]
-# }
-# """
-
-# # ---------------------------------------------------------
-# # 🧹 HELPER: CLEAN JSON OUTPUT
-# # ---------------------------------------------------------
-# def clean_json_text(text: str) -> str:
-#     """
-#     Removes Markdown formatting and finds the valid JSON block.
-#     """
-#     # 1. Remove Markdown code blocks
-#     text = re.sub(r"```json\s*", "", text)
-#     text = re.sub(r"```", "", text)
-    
-#     # 2. Trim whitespace
-#     text = text.strip()
-    
-#     # 3. Find the first '{' and last '}' to strip extra text
-#     start = text.find("{")
-#     end = text.rfind("}")
-    
-#     if start != -1 and end != -1:
-#         text = text[start:end+1]
-    
-#     return text
-
-# # ---------------------------------------------------------
-# # 🚀 MAIN PARSER FUNCTION
-# # ---------------------------------------------------------
-# def parse_resume_from_file(path_or_url: str) -> dict:
-#     """
-#     Downloads and analyzes PDF using Gemini 2.5 Flash (Most stable for JSON).
-#     """
-#     temp_path = None
-#     try:
-#         target_path = path_or_url
-
-#         # 1. Download if URL
-#         if path_or_url.startswith("http"):
-#             logger.info(f"⬇️ Downloading: {path_or_url}")
-#             try:
-#                 response = requests.get(path_or_url)
-#                 response.raise_for_status()
-#                 with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-#                     tmp.write(response.content)
-#                     target_path = tmp.name
-#                     temp_path = tmp.name
-#             except Exception as e:
-#                 return {"success": False, "error": f"Download Failed: {str(e)}"}
-
-#         # 2. Upload to Gemini
-#         logger.info(f"📤 Uploading to Gemini...")
-#         uploaded_file = genai.upload_file(target_path, mime_type="application/pdf")
-        
-#         # Wait for processing
-#         while uploaded_file.state.name == "PROCESSING":
-#             time.sleep(1)
-#             uploaded_file = genai.get_file(uploaded_file.name)
-
-#         if uploaded_file.state.name == "FAILED":
-#             return {"success": False, "error": "Gemini failed to process PDF."}
-
-#         # 3. Generate Analysis
-#         # Switched to gemini-2.5-flash for better JSON stability
-#         logger.info("🧠 Analyzing with Gemini 2.5 Flash...")
-#         model = genai.GenerativeModel(
-#             model_name="gemini-2.5-flash",
-#             generation_config={"response_mime_type": "application/json"}
-#         )
-
-#         response = model.generate_content([MASTER_PROMPT, uploaded_file])
-        
-#         # 4. Clean and Parse Result
-#         raw_text = response.text
-#         cleaned_text = clean_json_text(raw_text)
-        
-#         try:
-#             ai_data = json.loads(cleaned_text)
-#         except json.JSONDecodeError as e:
-#             logger.error(f"❌ JSON Parse Error: {e}")
-#             logger.error(f"Raw Output: {raw_text[:200]}...") # Log start of error
-#             return {"success": False, "error": "AI returned invalid JSON format."}
-        
-#         # Add success flag
-#         return {
-#             "success": True,
-#             "data": ai_data
-#         }
-
-#     except Exception as e:
-#         logger.error(f"❌ Error: {str(e)}")
-#         return {"success": False, "error": str(e)}
-    
-#     finally:
-#         if temp_path and os.path.exists(temp_path):
-#             os.remove(temp_path)
-
-# # Fallback for text endpoint (deprecated)
-# def parse_resume_text(text: str) -> dict:
-#     return {"error": "Use PDF upload for best results."}
-
-# if __name__ == "__main__":
-#     if len(sys.argv) > 1:
-#         print(json.dumps(parse_resume_from_file(sys.argv[1]), indent=2))

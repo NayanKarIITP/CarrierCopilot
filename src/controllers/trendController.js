@@ -8,12 +8,12 @@ exports.getTrends = async (req, res) => {
     await Trends.deleteMany({ "hiringTrends": { $exists: true } });
 
     // 2. FETCH FRESH DATA FROM PYTHON
-    console.log("🔄 Connecting to Python for Real-Time 2025 Data...");
+    console.log(" Connecting to Python for Real-Time 2025 Data...");
     const pythonResult = await pythonService.getMarketTrends();
 
     // 3. Validation
     if (!pythonResult || !pythonResult.trends || pythonResult.trends.length === 0) {
-       console.warn("⚠️ Python returned empty trends. Using fallback.");
+       console.warn(" Python returned empty trends. Using fallback.");
        throw new Error("Empty data from Python");
     }
 
@@ -22,13 +22,13 @@ exports.getTrends = async (req, res) => {
     await Trends.deleteMany({}); 
     const saved = await Trends.create(pythonResult);
     
-    console.log("✅ Fresh Data Saved & Sent to Frontend");
+    console.log(" Fresh Data Saved & Sent to Frontend");
     return res.json({ success: true, data: saved });
 
   } catch (err) {
-    console.error("❌ Controller Error:", err.message);
+    console.error(" Controller Error:", err.message);
 
-    // 5. EMERGENCY FALLBACK (Updated to match NEW Schema)
+    // 5. EMERGENCY FALLBACK 
     // This ensures charts are NEVER blank, even if Python crashes
     return res.json({
       success: true,
@@ -38,7 +38,7 @@ exports.getTrends = async (req, res) => {
           { skill: "Rust (Offline)", demand: 88 },
           { skill: "Cybersecurity (Offline)", demand: 85 }
         ],
-        // 👇 UPDATED KEY: 'trends' (not hiringTrends)
+        // UPDATED KEY: 'trends' (not hiringTrends)
         trends: [
           { month: "Jan", hiring: 100, salaries: 140 },
           { month: "Feb", hiring: 120, salaries: 145 },
@@ -51,7 +51,7 @@ exports.getTrends = async (req, res) => {
           { role: "Junior Dev", salary: 90 },
           { role: "Senior Dev", salary: 160 }
         ],
-        // 👇 UPDATED KEYS: snake_case
+        // UPDATED KEYS: snake_case
         insights: {
           growing_market: "N/A (Offline)",
           ai_opportunity: "N/A",

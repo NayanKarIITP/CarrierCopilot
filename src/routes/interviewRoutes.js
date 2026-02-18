@@ -1,49 +1,13 @@
 
-// const express = require("express");
-// const router = express.Router();
-// const auth = require("../middleware/authMiddleware");
-
-// const {
-//   startSession,
-//   getQuestion,
-//   analyze,
-//   listSessions,
-//   getFrameMetrics // ✅ Added this
-// } = require("../controllers/interviewController");
-
-// // Start a new session
-// router.post("/start", auth, startSession);
-
-// // Get next question (Changed to POST to accept session ID/Role)
-// router.post("/next-question", auth, getQuestion);
-
-// // Analyze interview (frame/voice/transcript)
-// router.post("/analyze", auth, analyze);
-
-// // List stored sessions
-// router.get("/sessions", auth, listSessions);
-
-// // Frame metrics (Video Feed calls this)
-// router.post("/frame-metrics", auth, getFrameMetrics);
-
-// module.exports = router;
-
-
-
-
-
-
-
-
 // src/routes/interviewRoutes.js
 const express = require('express');
 const router = express.Router();
 const interviewController = require('../controllers/interviewController');
 
-// Middleware to check if controller functions exist (Debugging safety)
+// Middleware to check if controller functions exist 
 const checkHandler = (handler, name) => {
     if (typeof handler !== 'function') {
-        console.error(`❌ Error: Controller function '${name}' is missing! Check interviewController.js exports.`);
+        console.error(` Error: Controller function '${name}' is missing! Check interviewController.js exports.`);
         // Return a dummy function to prevent server crash during startup
         return (req, res) => res.status(500).json({ message: `Endpoint '${name}' not implemented` });
     }

@@ -10,23 +10,18 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------
-# 🔧 ROBUST IMPORT (Finds llm_engine anywhere)
-# ---------------------------------------------------------
+#  ROBUST IMPORT (Finds llm_engine anywhere)
 try:
-    # Try direct import (works if running inside src/python)
+    
     from llm_engine import parse_with_llm
 except ImportError:
     try:
-        # Try package import (works if running from root via uvicorn)
         from src.python.llm_engine import parse_with_llm
     except ImportError:
         logger.warning("⚠️ llm_engine not found. Using MOCK mode.")
         def parse_with_llm(prompt, model_name=None): return "{}"
 
-# ---------------------------------------------------------
-# 🧠 PROMPTS
-# ---------------------------------------------------------
+#  PROMPTS
 
 QUESTION_PROMPT_TEMPLATE = """
 You are an expert Technical Interviewer for a FAANG company.
@@ -60,9 +55,7 @@ OUTPUT FORMAT (Strict JSON, No Markdown):
 }}
 """
 
-# ---------------------------------------------------------
-# 🛡️ FALLBACK TEMPLATES
-# ---------------------------------------------------------
+# FALLBACK TEMPLATES
 FALLBACK_TEMPLATES = [
     {
         "question": "Describe a challenging project you worked on as a {role}.",
@@ -81,9 +74,8 @@ FALLBACK_TEMPLATES = [
     }
 ]
 
-# ---------------------------------------------------------
-# 🛠️ HELPER: CLEAN JSON
-# ---------------------------------------------------------
+#  HELPER: CLEAN JSON
+
 def clean_json_output(text: str) -> str:
     if not text: return "{}"
     text = re.sub(r"```json\s*", "", text)
@@ -94,9 +86,7 @@ def clean_json_output(text: str) -> str:
         return text[start : end + 1]
     return text.strip()
 
-# ---------------------------------------------------------
 # 1. GENERATE QUESTION
-# ---------------------------------------------------------
 def generate_question(role="Software Engineer", level="Mid-Level", history=None):
     if history is None:
         history = []
@@ -131,7 +121,7 @@ def generate_question(role="Software Engineer", level="Mid-Level", history=None)
         }
 
     except Exception as e:
-        logger.error(f"⚠️ Question Generation Failed: {e}")
+        logger.error(f" Question Generation Failed: {e}")
         
         # Fallback
         template = random.choice(FALLBACK_TEMPLATES)
@@ -141,9 +131,7 @@ def generate_question(role="Software Engineer", level="Mid-Level", history=None)
             "difficulty": level
         }
 
-# ---------------------------------------------------------
 # 2. ANALYZE ANSWER
-# ---------------------------------------------------------
 def analyze_answer(transcript: str, question_context: str = "General Interview"):
     if not transcript or len(transcript) < 5:
         return {
@@ -170,7 +158,7 @@ def analyze_answer(transcript: str, question_context: str = "General Interview")
         return result
 
     except Exception as e:
-        logger.error(f"⚠️ Analysis Failed: {e}")
+        logger.error(f" Analysis Failed: {e}")
         return {
             "filler_words_count": {}, 
             "confidence_estimate": 70,
@@ -179,9 +167,7 @@ def analyze_answer(transcript: str, question_context: str = "General Interview")
             "clarity_score": 70
         }
 
-# ---------------------------------------------------------
 # ✅ MAIN EXECUTION
-# ---------------------------------------------------------
 if __name__ == "__main__":
     print(json.dumps(generate_question("DevOps", "Senior"), indent=2))
 
